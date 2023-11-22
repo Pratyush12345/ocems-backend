@@ -31,6 +31,7 @@ module.exports.signUp = async (req, res) => {
                     postName: "Operator of STP",
                     roleName: "Operator",
                     plantID: user.get('plantID'),
+                    phoneNo: "",
                     dateAdded: operator.metadata.creationTime
                 })
                 return newOperator

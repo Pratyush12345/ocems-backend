@@ -20,6 +20,7 @@ module.exports.signUp = async (req, res) => {
             name: name,
             postName: "Chief of STP",
             roleName: "Admin",
+            phoneNo: "",
             dateAdded: admin.metadata.creationTime,
         })
         return newAdmin
