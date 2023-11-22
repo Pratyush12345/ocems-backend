@@ -14,9 +14,6 @@ app.use(fileUpload({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
-// Require bull queue processor for queue
-// require('./queue/index')
-
 // implementing CORS security mechanism
 app.use((req,res,next) => {
     res.header("Access-Control-Allow-Origin", "*");
