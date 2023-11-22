@@ -37,7 +37,7 @@ module.exports.signUp = async (req, res) => {
                 return newOperator
             })
             .then(newOperator => {
-                return res.status(200).json({
+                return res.status(201).json({
                     message: "Operator created successfully"
                 })
             })

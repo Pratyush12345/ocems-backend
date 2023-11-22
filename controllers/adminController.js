@@ -26,7 +26,7 @@ module.exports.signUp = async (req, res) => {
         return newAdmin
     })
     .then(newAdmin => {
-        return res.status(200).json({
+        return res.status(201).json({
             message: "Admin created successfully"
         })
     })
