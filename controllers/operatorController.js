@@ -16,15 +16,24 @@ module.exports.signUp = async (req, res) => {
                 })
             }
 
-            firebase.auth().createUser({
-                email: email,
-                password: "operator",
-                emailVerified: false,
-                disabled: false
+            firestore.collection('plants').doc(user.get('plantID')).get()
+            .then(async plant => {
+                if(plant.get('selectedAdmin')!==adminid){
+                    return res.status(401).json({
+                        message: "Admin is not associated with this plant"
+                    })
+                }
+                const operator = await firebase.auth().createUser({
+                    email: email,
+                    password: "operator",
+                    emailVerified: false,
+                    disabled: false
+                })
+                return operator
             })
             .then(async operator => {
                 const newOperator = await firestore.collection('users').doc(operator.uid).set({
-                    accessLevel: 3,
+                    accessLevel: 2,
                     isSuspended: false,
                     mailID: email, 
                     name: name,
