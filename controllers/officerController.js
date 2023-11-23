@@ -56,39 +56,6 @@ module.exports.signUp = async (req, res) => {
                     error: err
                 })
             })
-
-
-            // firebase.auth().createUser({
-            //     email: email,
-            //     password: "officer",
-            //     emailVerified: false,
-            //     disabled: false
-            // })
-            // .then(async officer => {
-            //     const newOfficer = await firestore.collection('users').doc(officer.uid).set({
-            //         accessLevel: 2,
-            //         isSuspended: false,
-            //         mailID: email, 
-            //         name: name,
-            //         postName: "Officer of STP",
-            //         roleName: "Officer",
-            //         plantID: user.get('plantID'),
-            //         phoneNo: "",
-            //         dateAdded: officer.metadata.creationTime
-            //     })
-            //     return newOfficer
-            // })
-            // .then(newOfficer => {
-            //     return res.status(201).json({
-            //         message: "Officer created successfully"
-            //     })
-            // })
-            // .catch(err => {
-            //     console.log(err);
-            //     return res.status(500).json({
-            //         error: err
-            //     })
-            // })
         } else {
             return res.status(401).json({
                 message: "Only an admin can add officers"
