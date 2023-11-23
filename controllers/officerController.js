@@ -4,6 +4,7 @@ const firestore = firebase.firestore()
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
     const email = req.body.email
+    const phoneNo = req.body.phoneNo
     const adminid = req.userData.uid
 
     firestore.collection('users').doc(adminid).get()
@@ -15,7 +16,7 @@ module.exports.signUp = async (req, res) => {
                     message: "Please assign a plant to the admin before creating roles"
                 })
             }
-
+             
             firestore.collection('plants').doc(user.get('plantID')).get()
             .then(async plant => {
                 if(plant.get('selectedAdmin')!==adminid){
@@ -23,9 +24,14 @@ module.exports.signUp = async (req, res) => {
                         message: "Admin is not associated with this plant"
                     })
                 }
+
+                const date = new Date()
+                const newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Officer_2_${date.toISOString().replace(/\s+/g, '')}`
+                console.log(newPassword);
+
                 const officer = await firebase.auth().createUser({
                     email: email,
-                    password: "officer",
+                    password: newPassword,
                     emailVerified: false,
                     disabled: false
                 })
@@ -40,7 +46,7 @@ module.exports.signUp = async (req, res) => {
                     postName: "Officer of STP",
                     roleName: "Officer",
                     plantID: user.get('plantID'),
-                    phoneNo: "",
+                    phoneNo: phoneNo,
                     dateAdded: officer.metadata.creationTime
                 })
                 return newOfficer

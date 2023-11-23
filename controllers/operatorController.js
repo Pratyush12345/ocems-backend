@@ -4,6 +4,7 @@ const firestore = firebase.firestore()
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
     const email = req.body.email
+    const phoneNo = req.body.phoneNo
     const adminid = req.userData.uid
 
     firestore.collection('users').doc(adminid).get()
@@ -23,9 +24,14 @@ module.exports.signUp = async (req, res) => {
                         message: "Admin is not associated with this plant"
                     })
                 }
+
+                const date = new Date()
+                const newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Operator_3_${date.toISOString().replace(/\s+/g, '')}`
+                console.log(newPassword);
+
                 const operator = await firebase.auth().createUser({
                     email: email,
-                    password: "operator",
+                    password: newPassword,
                     emailVerified: false,
                     disabled: false
                 })
@@ -33,14 +39,14 @@ module.exports.signUp = async (req, res) => {
             })
             .then(async operator => {
                 const newOperator = await firestore.collection('users').doc(operator.uid).set({
-                    accessLevel: 2,
+                    accessLevel: 3,
                     isSuspended: false,
                     mailID: email, 
                     name: name,
                     postName: "Operator of STP",
                     roleName: "Operator",
                     plantID: user.get('plantID'),
-                    phoneNo: "",
+                    phoneNo: phoneNo,
                     dateAdded: operator.metadata.creationTime
                 })
                 return newOperator
