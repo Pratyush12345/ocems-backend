@@ -16,7 +16,7 @@ module.exports.signUp = async (req, res) => {
                     message: "Please assign a plant to the admin before creating roles"
                 })
             }
-             
+            
             firestore.collection('plants').doc(user.get('plantID')).get()
             .then(async plant => {
                 if(plant.get('selectedAdmin')!==adminid){
@@ -74,4 +74,29 @@ module.exports.signUp = async (req, res) => {
             error: err
         })
     })
+}
+
+module.exports.getOfficer = (req,res) => {
+    const officeruid = req.userData.uid
+
+    firestore.collection('users').doc(officeruid).get()
+    .then((officerDoc) => {
+        if (!officerDoc.exists) {
+            return res.status(404).json({
+                message: 'officer not found',
+            });
+        }
+
+        const officerData = officerDoc.data();
+
+        return res.status(200).json({
+            admin: officerData,
+        });
+    })
+    .catch((error) => {
+        console.error('Error getting officer:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
 }

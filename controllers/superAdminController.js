@@ -37,3 +37,28 @@ module.exports.signUp = async (req, res) => {
         })
     })
 }
+
+module.exports.getSuperAdmin = (req,res) => {
+    const superadminuid = req.userData.uid
+
+    firestore.collection('users').doc(superadminuid).get()
+    .then((superAdminDoc) => {
+        if (!superAdminDoc.exists) {
+            return res.status(404).json({
+                message: 'Super Admin not found',
+            });
+        }
+
+        const superAdminData = superAdminDoc.data();
+
+        return res.status(200).json({
+            admin: superAdminData,
+        });
+    })
+    .catch((error) => {
+        console.error('Error getting super admin:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
+}

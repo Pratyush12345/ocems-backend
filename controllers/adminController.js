@@ -58,3 +58,28 @@ module.exports.signUp = async (req, res) => {
         })
     })
 }
+
+module.exports.getAdmin = (req,res) => {
+    const adminuid = req.userData.uid
+
+    firestore.collection('users').doc(adminuid).get()
+    .then((adminDoc) => {
+        if (!adminDoc.exists) {
+            return res.status(404).json({
+                message: 'Admin not found',
+            });
+        }
+
+        const adminData = adminDoc.data();
+
+        return res.status(200).json({
+            admin: adminData,
+        });
+    })
+    .catch((error) => {
+        console.error('Error getting admin:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
+}

@@ -74,5 +74,29 @@ module.exports.signUp = async (req, res) => {
             error: err
         })
     })
+}
 
+module.exports.getOperator = (req,res) => {
+    const operatoruid = req.userData.uid
+
+    firestore.collection('users').doc(operatoruid).get()
+    .then((operatorDoc) => {
+        if (!operatorDoc.exists) {
+            return res.status(404).json({
+                message: 'operator not found',
+            });
+        }
+
+        const operatorData = operatorDoc.data();
+
+        return res.status(200).json({
+            admin: operatorData,
+        });
+    })
+    .catch((error) => {
+        console.error('Error getting operator:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
 }
