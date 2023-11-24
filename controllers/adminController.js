@@ -83,3 +83,57 @@ module.exports.getAdmin = (req,res) => {
         });
     });
 }
+
+module.exports.updateAdmin = (req,res) => {
+    const adminuid = req.userData.uid
+    const updatedData = req.body.updateData
+
+    if(updatedData["mailID"]!==undefined){
+        return res.status(400).json({
+            message: "You can't update email via this route"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).update(updatedData)
+    .then(() => {
+        return res.status(200).json({
+            message: 'Admin updated successfully',
+        });
+    })
+    .catch((error) => {
+        console.error('Error updating user:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
+}
+
+module.exports.deleteAdmin = (req,res) => {
+    const superadminuid = req.userData.uid
+    const adminuid = req.params.adminuid
+
+    firestore.collection('users').doc(superadminuid).get()
+    .then(async user => {
+        if(user.exists && user.get('roleName') === "superAdmin"){
+
+            await firebase.auth().deleteUser(adminuid)
+            
+            await firestore.collection('users').doc(adminuid).delete()
+            
+            return res.status(200).json({
+                message: 'User Deleted successfully',
+            });
+
+        } else {
+            return res.status(401).json({
+                message: "Only an admin can delete users"
+            })
+        }
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}

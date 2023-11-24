@@ -62,3 +62,44 @@ module.exports.getSuperAdmin = (req,res) => {
         });
     });
 }
+
+module.exports.updateSuperAdmin = (req,res) => {
+    const superadminuid = req.userData.uid
+    const updatedData = req.body.updateData
+
+    if(updatedData["mailID"]!==undefined){
+        return res.status(400).json({
+            message: "You can't update email via this route"
+        })
+    }
+
+    firestore.collection('users').doc(superadminuid).update(updatedData)
+    .then(() => {
+        return res.status(200).json({
+            message: 'Super Admin updated successfully',
+        });
+    })
+    .catch((error) => {
+        console.error('Error updating user:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
+}
+
+module.exports.deleteSuperAdmin = (req,res) => {
+    const superadminuid = req.userData.uid
+
+    firestore.collection('users').doc(superadminuid).delete()
+    .then(() => {
+        return res.status(200).json({
+            message: 'Super Admin Deleted successfully',
+        });
+    })
+    .catch((error) => {
+        console.error('Error updating user:', error);
+        return res.status(500).json({
+            message: 'Internal Server Error',
+        });
+    });
+}

@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const superAdminController = require('../controllers/superAdminController')
 
-router.get('/getsuperadmin', superAdminController)
+router.get('/getsuperadmin', superAdminController.getSuperAdmin)
 router.post('/signup', superAdminController.signUp)
 
 module.exports = router

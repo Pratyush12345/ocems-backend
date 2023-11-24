@@ -6,4 +6,11 @@ const checkAuth = require('../middlewares/check-auth')
 router.get('/getadmin', checkAuth, adminController.getAdmin)
 router.post('/signup', checkAuth, adminController.signUp)
 
+// add auth check
+router.patch('/update', adminController.updateAdmin)
+router.delete('/delete', adminController.deleteAdmin)
+
+router.patch('/update/user/:useruid', adminController.updateAdmin)
+router.delete('/delete/user/:useruid', adminController.deleteAdmin)
+
 module.exports = router
