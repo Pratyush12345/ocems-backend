@@ -10,7 +10,4 @@ router.post('/signup', checkAuth, adminController.signUp)
 router.patch('/update', adminController.updateAdmin)
 router.delete('/delete', adminController.deleteAdmin)
 
-router.patch('/update/user/:useruid', adminController.updateAdmin)
-router.delete('/delete/user/:useruid', adminController.deleteAdmin)
-
 module.exports = router

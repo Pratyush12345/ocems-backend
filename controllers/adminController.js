@@ -88,12 +88,6 @@ module.exports.updateAdmin = (req,res) => {
     const adminuid = req.userData.uid
     const updatedData = req.body.updateData
 
-    if(updatedData["mailID"]!==undefined){
-        return res.status(400).json({
-            message: "You can't update email via this route"
-        })
-    }
-
     firestore.collection('users').doc(adminuid).update(updatedData)
     .then(() => {
         return res.status(200).json({
