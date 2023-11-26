@@ -7,6 +7,7 @@ const checkAuth = require('../middlewares/check-auth')
 router.get('/', userContoller.getUsers)
 router.get('/:uid', userContoller.getUser)
 
+router.patch('/update/password', userContoller.passwordReset)
 router.patch('/update/:useruid', checkAuth, userContoller.updateUser)
 router.delete('/delete/:useruid', checkAuth, userContoller.deleteUser)
 

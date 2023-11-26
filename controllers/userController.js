@@ -171,3 +171,9 @@ module.exports.deleteUser = (req,res) => {
         })
     })
 }
+
+module.exports.passwordReset = (req,res) => {
+    const email = req.body.email
+
+    
+}

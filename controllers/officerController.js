@@ -1,5 +1,15 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
+const Queue = require('bull');
+
+const mailQueue = new Queue('mailQueue', {
+    redis: {
+        host: process.env.REDIS_HOST,
+        port: process.env.REDIS_PORT,
+        password: process.env.REDIS_PASSWORD,
+        username: process.env.REDIS_USERNAME
+    }
+})
 
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
@@ -17,6 +27,7 @@ module.exports.signUp = async (req, res) => {
                 })
             }
             
+            let newPassword
             firestore.collection('plants').doc(user.get('plantID')).get()
             .then(async plant => {
                 if(plant.get('selectedAdmin')!==adminid){
@@ -26,8 +37,7 @@ module.exports.signUp = async (req, res) => {
                 }
 
                 const date = new Date()
-                const newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Officer_2_${date.toISOString().replace(/\s+/g, '')}`
-                console.log(newPassword);
+                newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Officer_2_${date.toISOString().replace(/\s+/g, '')}`
 
                 const officer = await firebase.auth().createUser({
                     email: email,
@@ -51,7 +61,9 @@ module.exports.signUp = async (req, res) => {
                 })
                 return newOfficer
             })
-            .then(newOfficer => {
+            .then(async newOfficer => {
+                await mailQueue.add({ role: "Officer", email: email, password: newPassword })
+
                 return res.status(201).json({
                     message: "Officer created successfully"
                 })
