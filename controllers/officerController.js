@@ -15,6 +15,7 @@ module.exports.signUp = async (req, res) => {
     const name = req.body.name
     const email = req.body.email
     const phoneNo = req.body.phoneNo
+    const postName = req.body.postName
     const adminid = req.userData.uid
 
     firestore.collection('users').doc(adminid).get()
@@ -53,7 +54,7 @@ module.exports.signUp = async (req, res) => {
                     isSuspended: false,
                     mailID: email, 
                     name: name,
-                    postName: "Officer of STP",
+                    postName: postName,
                     roleName: "Officer",
                     plantID: user.get('plantID'),
                     phoneNo: phoneNo,

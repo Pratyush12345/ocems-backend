@@ -15,6 +15,7 @@ module.exports.signUp = async (req, res) => {
     const name = req.body.name
     const email = req.body.email
     const phoneNo = req.body.phoneNo
+    const postName = req.body.postName
     const superAdminId = req.userData.uid
     // const superAdminId = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
 
@@ -36,7 +37,7 @@ module.exports.signUp = async (req, res) => {
                     isSuspended: false,
                     mailID: email, 
                     name: name,
-                    postName: "Chief of STP",
+                    postName: postName,
                     roleName: "Admin",
                     plantID: "",
                     phoneNo: phoneNo,
