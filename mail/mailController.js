@@ -44,7 +44,7 @@ module.exports.sendCredentialMail = async (role,email,password) => {
 
         const mailOptions = {
             from: 'OCEMS <superocems@gmail.com>',
-            to: key,
+            to: email,
             subject: `Login credentials for OCEMS ${role} Account`,
             html: renderedHTML
         }

@@ -17,7 +17,6 @@ module.exports.signUp = async (req, res) => {
     const phoneNo = req.body.phoneNo
     const postName = req.body.postName
     const superAdminId = req.userData.uid
-    // const superAdminId = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
 
     firestore.collection('users').doc(superAdminId).get()
     .then(user => {
