@@ -173,7 +173,27 @@ module.exports.deleteUser = (req,res) => {
 }
 
 module.exports.passwordReset = (req,res) => {
-    const email = req.body.email
+    const useruid = req.userData.uid
+    const password = req.body.password
 
-    
+    if(password.length<6){
+        return res.status(400).json({
+            message: "Password should have a length of at least 6"
+        })
+    }
+
+    firebase.auth().updateUser(useruid, {
+        password: password
+    })
+    .then(result => {
+        return res.status(200).json({
+            message: "Password updated successfully"
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
