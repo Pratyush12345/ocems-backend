@@ -1,15 +1,6 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
-const Queue = require('bull');
-
-const mailQueue = new Queue('mailQueue', {
-    redis: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-        password: process.env.REDIS_PASSWORD,
-        username: process.env.REDIS_USERNAME
-    }
-})
+const Email = require('../mail/mailController')
 
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
@@ -63,7 +54,7 @@ module.exports.signUp = async (req, res) => {
                 return newOfficer
             })
             .then(async newOfficer => {
-                await mailQueue.add({ role: "Officer", email: email, password: newPassword })
+                await Email.sendCredentialMail("Officer", email, newPassword)
 
                 return res.status(201).json({
                     message: "Officer created successfully"

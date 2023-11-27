@@ -3,16 +3,6 @@ const ejs = require('ejs')
 const path = require('path')
 const nodemailer = require('nodemailer')
 const { google } = require('googleapis')
-const Queue      = require('bull');
-
-const mailQueue = new Queue('mailQueue', {
-    redis: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-        password: process.env.REDIS_PASSWORD,
-        username: process.env.REDIS_USERNAME
-    }
-})
 
 const oAuth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
