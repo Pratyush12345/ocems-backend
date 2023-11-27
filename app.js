@@ -31,5 +31,5 @@ app.use((req,res,next) => {
 app.use('/', require('./routes/home'));
 
 app.listen(process.env.PORT || 3001, () => {
-    console.log(`Server started`);
+    console.log(`Ocems Server started`);
 })
