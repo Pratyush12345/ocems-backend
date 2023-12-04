@@ -117,6 +117,41 @@ module.exports.getRequests = (req,res) => {
     })
 }
 
+// returns all industries of a plant using admin's id
+module.exports.getUnapprovedRequests = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "admin not found"
+            })
+        }
+        const plantID = admin.get('plantID')
+        const requests = await firestore.collection(`${plantID}_industry_users`).where('approved', '==', false).get()
+        
+        const industries = [];
+        requests.forEach((doc) => {
+            industries.push({
+                id: doc.id,
+                data: doc.data()
+            });
+        });
+
+        return res.status(200).json({
+            industries: industries
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
 /**
  *  On request approval
  *      ~ Error checking
@@ -276,6 +311,9 @@ module.exports.bulkUpload = (req,res) => {
 
             // add creation date to industry json object 
             industryElement["dateAdded"]=industryAuth.metadata.creationTime
+            
+            // approve the industry
+            industryElement["approved"]=true
 
             // add industry to plant's industry collection
             await firestore.collection(`${plantID}_industry_users`).doc(industryAuth.uid).set(industryElement)

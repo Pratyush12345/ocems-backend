@@ -5,6 +5,8 @@ const industryController = require('../controllers/industryController')
 
 router.post('/signup', industryController.signUp)
 router.get('/', checkAuth, industryController.getRequests)
+// router.get('/requests', checkAuth, industryController.getUnapprovedRequests)
+router.get('/requests', industryController.getUnapprovedRequests)
 router.post('/approve', checkAuth, industryController.approveRequest)
 router.post('/reject', checkAuth, industryController.rejectRequest)
 router.post('/bulkadd', checkAuth, industryController.bulkUpload)
