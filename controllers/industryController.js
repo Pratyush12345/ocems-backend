@@ -119,8 +119,7 @@ module.exports.getRequests = (req,res) => {
 
 // returns all industries of a plant using admin's id
 module.exports.getUnapprovedRequests = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
