@@ -17,9 +17,24 @@ const Email = require('../mail/mailController')
  *      ~ Remove from industry collection
  *      ~ Send cancellation mail of request mail
  */
+
+/**
+ * 404 -> Please enter a valid plant ID.
+ * 409 -> email-already-exists
+ * 500 -> Internal server error
+ */
 module.exports.signUp = async (req,res) => {
     const email = req.body.email
     const plantID = req.body.plantID
+    
+    // Valid plant ID check
+    const plantCheck = await firestore.collection('plants').doc(plantID).get()
+
+    if(!plantCheck.exists){
+        return res.status(404).json({
+            message: "Please enter a valid plant ID."
+        })
+    }
     
     firebase.auth().createUser({
         email: email,
@@ -28,14 +43,6 @@ module.exports.signUp = async (req,res) => {
         disabled: false,
     })
     .then(async industryAuth => {
-        // Valid plant ID check
-        const plantCheck = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plantCheck.exists){
-            return res.status(404).json({
-                message: "Please enter a valid plant ID."
-            })
-        }
 
         // add to plant's industry users collection
         await firestore.collection(`${plantID}_industry_users`).doc(industryAuth.uid).set({
