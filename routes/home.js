@@ -11,5 +11,6 @@ router.use('/officer', require('./officer'))
 router.use('/industry', require('./industry'))
 router.use('/operator', require('./operator'))
 router.use('/superadmin', require('./superAdmin'))
+router.use('/inventory', require('./inventory'))
 
 module.exports = router;

@@ -37,6 +37,13 @@ module.exports.signUp = async (req, res) => {
                     emailVerified: false,
                     disabled: false
                 })
+
+                // set custom user claims
+                await firebase.auth().setCustomUserClaims(officer.uid, {
+                    role: "officer",
+                    accessLevel: 2
+                })
+                
                 return officer
             })
             .then(async officer => {
