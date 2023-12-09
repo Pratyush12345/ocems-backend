@@ -244,7 +244,8 @@ module.exports.approveRequest = (req,res) => {
 
         // set custom claim for plant id on industry
         await firebase.auth().setCustomUserClaims(newIndustryAccount.uid, {
-            plantID: plantID
+            plantID: plantID,
+            role: "industry"
         })
 
         // update industry approved field in plant's industry collection

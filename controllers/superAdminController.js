@@ -13,6 +13,12 @@ module.exports.signUp = async (req, res) => {
         disabled: false,
     })
     .then(async superAdmin => {
+        // set custom user claims
+        await firebase.auth().setCustomUserClaims(superAdmin.uid, {
+            role: "super admin",
+            accessLevel: 0
+        })
+
         const newsuperAdmin = await firestore.collection('users').doc(superAdmin.uid).set({
             accessLevel: 0,
             isSuspended: false,
