@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const superAdminController = require('../controllers/superAdminController')
+const superAdminController = require('../controllers/users/superAdminController')
 const checkAuth = require('../middlewares/check-auth')
 
 router.get('/getsuperadmin', checkAuth, superAdminController.getSuperAdmin)

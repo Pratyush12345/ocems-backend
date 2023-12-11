@@ -1,7 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const adminController = require('../controllers/adminController')
-const userContoller = require('../controllers/userController')
+const userContoller = require('../controllers/users/userController')
 const checkAuth = require('../middlewares/check-auth')
 
 router.get('/', userContoller.getUsers)

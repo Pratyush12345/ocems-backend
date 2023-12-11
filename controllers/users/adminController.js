@@ -1,6 +1,6 @@
-const firebase = require('../config/firebase')
+const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
-const Email = require('../mail/mailController')
+const Email = require('../../mail/mailController')
 
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
