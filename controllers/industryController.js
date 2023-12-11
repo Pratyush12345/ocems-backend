@@ -70,7 +70,7 @@ module.exports.signUp = async (req,res) => {
             })
         }
 
-        const newIndustry = await firestore.collection(`${plantID}_industry_users`).add({
+        const newIndustry = await firestore.collection(`plants/${plantID}/industryUsers`).add({
             IC_chamber_install: req.body.IC_chamber_install,
             address: req.body.address,
             approved: false,
@@ -130,7 +130,7 @@ module.exports.getRequests = (req,res) => {
         }
 
         const plantID = admin.get('plantID')
-        const requests = await firestore.collection(`${plantID}_industry_users`).where('approved', '==', true).get()
+        const requests = await firestore.collection(`plants/${plantID}/industryUsers`).where('approved', '==', true).get()
         
         const industries = [];
         requests.forEach((doc) => {
@@ -171,7 +171,7 @@ module.exports.getUnapprovedRequests = (req,res) => {
         }
 
         const plantID = admin.get('plantID')
-        const requests = await firestore.collection(`${plantID}_industry_users`).where('approved', '==', false).get()
+        const requests = await firestore.collection(`plants/${plantID}/industryUsers`).where('approved', '==', false).get()
         
         const industries = [];
         requests.forEach((doc) => {
@@ -249,7 +249,7 @@ module.exports.approveRequest = (req,res) => {
         })
 
         // update industry approved field in plant's industry collection
-        await firestore.collection(`${plantID}_industry_users`).doc(industryuid).update({
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryuid).update({
             approved: true
         })
 
@@ -307,7 +307,7 @@ module.exports.rejectRequest = (req,res) => {
         }
         
         // delete industry from plant's industry collection
-        await firestore.collection(`${plantID}_industry_users`).doc(industryuid).delete()
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryuid).delete()
 
         // remove industry request from the industriesRequest collection
         await firestore.collection('industriesRequest').doc(industryuid).delete()
@@ -396,7 +396,7 @@ module.exports.bulkUpload = (req,res) => {
             industryElement["approved"]=true
 
             // add industry to plant's industry collection
-            await firestore.collection(`${plantID}_industry_users`).add(industryElement)
+            await firestore.collection(`plants/${plantID}/industryUsers`).add(industryElement)
 
             // send email of credentials
             await Email.sendCredentialMail("Industry", industryAuth.email, password)
@@ -436,14 +436,14 @@ module.exports.deleteIndustry = (req,res) => {
 
         const plantID = admin.get('plantID')
 
-        const industryFirestore = await firestore.collection(`${plantID}_industry_users`).doc(industryid).get()
+        const industryFirestore = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
         const industry = await firebase.auth().getUserByEmail(industryFirestore.get('email'))
 
         // delete industries firebase account
         await firebase.auth().deleteUser(industry.uid)
 
         // delete industry from plant's industry collection
-        await firestore.collection(`${plantID}_industry_users`).doc(industryid).delete()
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).delete()
 
         // delete request from industry requests (if present)
         await IndustryRequest.doc(industryid).delete()
