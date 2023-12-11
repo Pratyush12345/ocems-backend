@@ -39,7 +39,7 @@ module.exports.getItems = (req,res) => {
 
         // itemsQuery definition
         if(itemid!==undefined){
-            itemsQuery = await firestore.collection(`${plantID}_inventory`).doc(itemid).get()
+            itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
 
             if(!itemsQuery.exists){
                 return res.status(404).json({
@@ -52,16 +52,16 @@ module.exports.getItems = (req,res) => {
             }
         } else if(itemType!==undefined){
             if(itemType==="0"){
-                itemsQuery = await firestore.collection(`${plantID}_inventory`).where('itemType', '==', "Consumable").get()
+                itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).where('itemType', '==', "Consumable").get()
             } else if(itemType==="1") {
-                itemsQuery = await firestore.collection(`${plantID}_inventory`).where('itemType', '==', "Non Consumable").get()
+                itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).where('itemType', '==', "Non Consumable").get()
             } else {
                 return res.status(404).json({
                     message: "Item type doesn't exist"
                 })
             }
         } else {
-            itemsQuery = await firestore.collection(`${plantID}_inventory`).get()
+            itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).get()
         }
 
         const items = [];
@@ -110,7 +110,7 @@ module.exports.addItem = (req,res) => {
         const plantID = user.get('plantID')
         
         // Already existing item check
-        const itemCheck = await firestore.collection(`${plantID}_inventory`).where('itemCode', "==", itemCode).get()
+        const itemCheck = await firestore.collection(`plants/${plantID}/inventory`).where('itemCode', "==", itemCode).get()
         if(!itemCheck.empty){
             return res.status(409).json({
                 message: "Item already exists in the inventory"
@@ -118,7 +118,7 @@ module.exports.addItem = (req,res) => {
         }
         
         // add to inventory
-        await firestore.collection(`${plantID}_inventory`).add({
+        await firestore.collection(`plants/${plantID}/inventory`).add({
             dateCreated: new Date().toUTCString(),
             dateUpdated: new Date().toUTCString(),
             itemCode: itemCode,
@@ -164,7 +164,7 @@ module.exports.useItem = (req,res) => {
         const plantID = user.get('plantID')
         
         // get item from inventory
-        const item = await firestore.collection(`${plantID}_inventory`).doc(itemid).get()
+        const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
         const itemUnit = item.get('itemUnit')
         const availableQty = item.get('itemQuantityAvailable')
 
@@ -194,14 +194,14 @@ module.exports.useItem = (req,res) => {
 
         // add usage qty to item's usage collection
         const date = new Date().toUTCString()
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).collection('usage').add({
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).collection('usage').add({
             dateUsed: date,
             usageQty: usageQty,
             usageUnit: itemUnit,
         })
 
         // update available quantity
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).update({
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).update({
             itemQuantityAvailable: availableQty-usageQty,
             dateUpdated: date
         })
@@ -242,7 +242,7 @@ module.exports.restockItem = (req,res) => {
         const plantID = user.get('plantID')
         
         // get item from inventory
-        const item = await firestore.collection(`${plantID}_inventory`).doc(itemid).get()
+        const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
         const itemUnit = item.get('itemUnit')
         const availableQty = item.get('itemQuantityAvailable')
 
@@ -260,14 +260,14 @@ module.exports.restockItem = (req,res) => {
 
         // add restock qty to item's entries collection
         const date = new Date().toUTCString()
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).collection('entries').add({
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).collection('entries').add({
             dateEntered: date,
             enteredQty: restockItemQty,
             enteredUnit: restockItemUnit,
         })
 
         // update available quantity
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).update({
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).update({
             itemQuantityAvailable: availableQty+restockItemQty,
             dateUpdated: date
         })
@@ -317,7 +317,7 @@ module.exports.updateItem = (req,res) => {
         updates["dateUpdated"]=new Date().toUTCString()
 
         // update item in collection
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).update(updates)
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).update(updates)
 
         return res.status(200).json({
             message: "Item updated successfully"
@@ -353,7 +353,7 @@ module.exports.deleteItem = (req,res) => {
 
         const plantID = user.get('plantID')
         // update item in collection
-        await firestore.collection(`${plantID}_inventory`).doc(itemid).delete()
+        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).delete()
 
         return res.status(200).json({
             message: "Item deleted successfully"
