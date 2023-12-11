@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const checkAuth = require('../middlewares/check-auth')
-const inventoryController = require('../controllers/inventory/inventoryController')
+const checkAuth = require('../../middlewares/check-auth')
+const inventoryController = require('../../controllers/inventory/inventoryController')
 
 router.get('/', checkAuth, inventoryController.getItems)
 

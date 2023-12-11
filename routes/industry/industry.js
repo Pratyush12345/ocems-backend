@@ -1,8 +1,9 @@
 const express = require('express')
 const router = express.Router()
-const checkAuth = require('../middlewares/check-auth')
-const industryController = require('../controllers/industry/industryController')
+const checkAuth = require('../../middlewares/check-auth')
+const industryController = require('../../controllers/industry/industryController')
 
+router.use('/bill', require('./bill'))
 router.use('/notice', require('./notice'))
 
 router.post('/signup', industryController.signUp)

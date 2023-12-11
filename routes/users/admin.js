@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const adminController = require('../controllers/users/adminController')
-const checkAuth = require('../middlewares/check-auth')
+const adminController = require('../../controllers/users/adminController')
+const checkAuth = require('../../middlewares/check-auth')
 
 router.get('/getadmin', checkAuth, adminController.getAdmin)
 router.post('/signup', checkAuth, adminController.signUp)
