@@ -1,7 +1,6 @@
 const fs = require('fs')
 const ejs = require('ejs')
 const path = require('path')
-const nodemailer = require('nodemailer')
 const SibApiV3Sdk = require('@getbrevo/brevo');
 let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 
