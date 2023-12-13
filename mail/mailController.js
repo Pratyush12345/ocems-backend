@@ -9,8 +9,8 @@ const oAuth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI
 )
-
-oAuth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
+const refresh_token = "1//04YcentjOcBUaCgYIARAAGAQSNwF-L9IrKKaswf0RFTTte8LsgoeZvLnY9aaK53ORAE71MBMpkl0bfPa8jtc7lVHFK6SRcx8beeU"
+oAuth2Client.setCredentials({ refresh_token: refresh_token })
 
 const credentialsTemplate = fs.readFileSync(path.join(__dirname, './templates/credentials.ejs'), 'utf8')
 const rejectionTemplate = fs.readFileSync(path.join(__dirname, './templates/rejection.ejs'), 'utf8')
@@ -28,7 +28,7 @@ module.exports.sendCredentialMail = async (role,email,password) => {
                 user: 'superocems@gmail.com',
                 clientId: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+                refreshToken: refresh_token,
                 accessToken: accessToken
             }
         })
@@ -61,7 +61,7 @@ module.exports.sendIndustryRejectionMail = async (email) => {
                 user: 'superocems@gmail.com',
                 clientId: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+                refreshToken: refresh_token,
                 accessToken: accessToken
             }
         })
