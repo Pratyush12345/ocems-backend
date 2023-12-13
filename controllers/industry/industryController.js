@@ -1,7 +1,7 @@
-const firebase = require('../config/firebase')
+const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 const IndustryRequest = firestore.collection('industriesRequest')
-const Email = require('../mail/mailController')
+const Email = require('../../mail/mailController')
 
 const mailChecker = async (email) => {
     try {

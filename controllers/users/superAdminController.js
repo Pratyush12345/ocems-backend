@@ -1,4 +1,4 @@
-const firebase = require('../config/firebase')
+const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
 module.exports.signUp = async (req, res) => {
