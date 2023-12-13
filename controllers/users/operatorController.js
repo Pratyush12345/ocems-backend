@@ -1,6 +1,6 @@
-const firebase = require('../config/firebase')
+const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
-const Email = require('../mail/mailController')
+const Email = require('../../mail/mailController')
 
 module.exports.signUp = async (req, res) => {
     const name = req.body.name
@@ -18,7 +18,7 @@ module.exports.signUp = async (req, res) => {
                     message: "Please assign a plant to the admin before creating roles"
                 })
             }
-            
+
             let newPassword
             firestore.collection('plants').doc(user.get('plantID')).get()
             .then(async plant => {
@@ -29,9 +29,9 @@ module.exports.signUp = async (req, res) => {
                 }
 
                 const date = new Date()
-                newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Officer_2_${date.toISOString().replace(/\s+/g, '')}`
+                newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Operator_3_${date.toISOString().replace(/\s+/g, '')}`
 
-                const officer = await firebase.auth().createUser({
+                const operator = await firebase.auth().createUser({
                     email: email,
                     password: newPassword,
                     emailVerified: false,
@@ -39,32 +39,32 @@ module.exports.signUp = async (req, res) => {
                 })
 
                 // set custom user claims
-                await firebase.auth().setCustomUserClaims(officer.uid, {
-                    role: "officer",
-                    accessLevel: 2
+                await firebase.auth().setCustomUserClaims(operator.uid, {
+                    role: "operator",
+                    accessLevel: 3
                 })
-                
-                return officer
+
+                return operator
             })
-            .then(async officer => {
-                const newOfficer = await firestore.collection('users').doc(officer.uid).set({
-                    accessLevel: 2,
+            .then(async operator => {
+                const newOperator = await firestore.collection('users').doc(operator.uid).set({
+                    accessLevel: 3,
                     isSuspended: false,
                     mailID: email, 
                     name: name,
                     postName: postName,
-                    roleName: "Officer",
+                    roleName: "Operator",
                     plantID: user.get('plantID'),
                     phoneNo: phoneNo,
-                    dateAdded: officer.metadata.creationTime
+                    dateAdded: operator.metadata.creationTime
                 })
-                return newOfficer
+                return newOperator
             })
-            .then(async newOfficer => {
-                await Email.sendCredentialMail("Officer", email, newPassword)
+            .then(async newOperator => {
+                await Email.sendCredentialMail("Operator", email, newPassword)
 
                 return res.status(201).json({
-                    message: "Officer created successfully"
+                    message: "Operator created successfully"
                 })
             })
             .catch(err => {
@@ -75,7 +75,7 @@ module.exports.signUp = async (req, res) => {
             })
         } else {
             return res.status(401).json({
-                message: "Only an admin can add officers"
+                message: "Only an admin can add operators"
             })
         }
     })
@@ -86,3 +86,4 @@ module.exports.signUp = async (req, res) => {
         })
     })
 }
+
