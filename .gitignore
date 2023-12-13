@@ -1,3 +1,4 @@
 node_modules
 .env
 ocems-firebase.json
+uploads

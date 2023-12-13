@@ -16,7 +16,7 @@ module.exports.sendCredentialMail = async (role,email,password) => {
     const renderedHTML = ejs.render(credentialsTemplate, { role: role, email: email, password: password })
 
     try {
-        sendSmtpEmail.subject = `Approval of Request for OCEMS ${role} Account`;
+        sendSmtpEmail.subject = `Login credentials for OCEMS ${role} Account`;
         sendSmtpEmail.htmlContent = renderedHTML;
         sendSmtpEmail.sender = {"name":"OCEMS","email":"superocems@gmail.com"};
         sendSmtpEmail.to = [{"email": email}];

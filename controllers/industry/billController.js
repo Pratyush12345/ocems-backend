@@ -1,6 +1,7 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
+// new error- yearly mentioned but got other values
 module.exports.createBill = async (req, res) => {
     const description = req.body.description
     const goods = req.body.goods
@@ -8,8 +9,7 @@ module.exports.createBill = async (req, res) => {
     const lastDate = req.body.lastDate
     const industryid = req.params.industryid
     const amount = req.body.amount
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -26,7 +26,7 @@ module.exports.createBill = async (req, res) => {
         }
 
         // goods validation
-        if(goods.length<=1){
+        if(goods===undefined || goods.length<1){
             return res.status(400).json({
                 message: "Please provide at least one good"
             })
@@ -34,6 +34,13 @@ module.exports.createBill = async (req, res) => {
 
         const date = new Date()
         const plantID = admin.get('plantID')
+        
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry not found"
+            })
+        }
 
         for (let i = 0; i < goods.length; i++) {
             const good = goods[i];
@@ -56,12 +63,36 @@ module.exports.createBill = async (req, res) => {
                         message: `The starting year should be strictly less than the ending year of good ${i+1}`
                     })
                 }
+
+                if(date.getFullYear()<ending){
+                    return res.status(400).json({
+                        message: `Can't create a bill for future for good ${i+1}`
+                    })
+                }
                 
             } else {
                 const startingMonth = parseInt(starting.substr(0,2))
                 const endingMonth = parseInt(ending.substr(0,2))
                 const startingYear = parseInt(starting.substr(3))
                 const endingYear = parseInt(ending.substr(3))
+
+                if(date.getFullYear()<endingYear){
+                    return res.status(400).json({
+                        message: `Can't create a bill for future for good ${i+1}`
+                    })
+                }
+
+                if(starting.substr(0,2).charAt(1)==='/'){
+                    return res.status(400).json({
+                        message: `Please provide starting month as two digits integer, eg. 05, 06 for good ${i+1}`
+                    })
+                }
+
+                if(ending.substr(0,2).charAt(1)==='/'){
+                    return res.status(400).json({
+                        message: `Please provide ending month as two digits integer, eg. 05, 06 for good ${i+1}`
+                    })
+                }
 
                 // not checking for startingMonth>=endingMonth as it is possible in the case for eg. 10/2023 to 02/2024
                 if(startingMonth===endingMonth && startingYear===endingYear){
@@ -114,19 +145,19 @@ module.exports.createBill = async (req, res) => {
             const yearString = currentFullQuotationNo.substring(currentFullQuotationNo.indexOf('/', currentFullQuotationNo.indexOf('/') + 1) + 1);
             newFullQuotaionNo = `${currentFullQuotationNo.substr(0,3)}${newQuotationNo}/${yearString}`
 
-            // await firestore.collection('plants').doc(plantID).update({
-            //     currentQuotationNo: newFullQuotaionNo
-            // })
+            await firestore.collection('plants').doc(plantID).update({
+                currentQuotationNo: newFullQuotaionNo
+            })
         } else {
             const toYear = (currentYear+1).toString().substring(2)
             const yearString = `${currentYear}-${toYear}`
             
             newFullQuotaionNo = `${currentFullQuotationNo.substr(0,3)}0000/${yearString}`
 
-            // await firestore.collection('plants').doc(plantID).update({
-            //     currentQuotationNo: newFullQuotaionNo,
-            //     startingQuotationNo: newFullQuotaionNo
-            // })
+            await firestore.collection('plants').doc(plantID).update({
+                currentQuotationNo: newFullQuotaionNo,
+                startingQuotationNo: newFullQuotaionNo
+            })
         }
 
         await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').add({
@@ -157,11 +188,45 @@ module.exports.createBill = async (req, res) => {
     })
 }
 
-module.exports.deleteCopy = (req,res) => {
+module.exports.uploadPaymentReciept = (req,res) => {
     const billid = req.body.billid
-    const industryid = req.body.industryid
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const industryuid = req.userData.uid
+
+    firebase.auth().getUser(industryuid)
+    .then(async industry => {
+        const plantID = industry.customClaims.plantID
+        const filePath = req.file.path
+        const industrydocid = industry.customClaims.industryid
+
+        const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).get()
+        if(!bill.exists){
+            return res.status(404).json({
+                message: "Bill not found"
+            })
+        }
+
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).update({
+            datePaid: new Date().toUTCString(),
+            isPaid: true,
+            paymentRecieptLink: filePath
+        })
+        
+        return res.status(200).json({
+            message: "Reciept uploaded successfully"
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
+module.exports.deleteCopy = (req,res) => {
+    const industryid = req.params.industryid
+    const billid = req.params.billid
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -199,7 +264,7 @@ module.exports.deleteCopy = (req,res) => {
         await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).delete()
         
         return res.status(200).json({
-            message: "Bill master copy successfully deleted"
+            message: "Bill successfully deleted"
         })
     })
     .catch(err => {
