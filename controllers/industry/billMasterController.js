@@ -1,6 +1,46 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
+module.exports.getMasterCopiesTypes = (req,res) => {
+    const adminuid = req.userData.uid
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel')!==1){
+            return res.status(401).json({
+                message: "Only admin can perform billing operations"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const billMasterTypes = await firestore.collection(`plants/${plantID}/billMasterCopy`).get()
+
+        const types = []
+        // get all unique types from bill master copies using the field 'type'
+        billMasterTypes.forEach(doc => {
+            if(!types.includes(doc.get('type'))){
+                types.push(doc.get('type'))
+            }
+        })
+
+        return res.status(200).json({
+            types: types
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
 module.exports.getMasterCopies = (req,res) => {
     const adminuid = req.userData.uid
 

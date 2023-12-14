@@ -1,7 +1,6 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
-// new error- yearly mentioned but got other values
 module.exports.createBill = async (req, res) => {
     const description = req.body.description
     const goods = req.body.goods
