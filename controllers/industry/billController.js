@@ -58,6 +58,12 @@ module.exports.createBill = async (req, res) => {
                 starting = parseInt(starting)
                 ending = parseInt(ending)
                 
+                if(starting.toString().length!==4 || ending.toString().length!==4){
+                    return res.status(400).json({
+                        message: `Please provide starting and ending year as four digits integer for good ${i+1}`
+                    })
+                }
+
                 if(starting>=ending){
                     return res.status(400).json({
                         message: `The starting year should be strictly less than the ending year of good ${i+1}`
@@ -75,6 +81,12 @@ module.exports.createBill = async (req, res) => {
                 const endingMonth = parseInt(ending.substr(0,2))
                 const startingYear = parseInt(starting.substr(3))
                 const endingYear = parseInt(ending.substr(3))
+
+                if(startingMonth>12 || endingMonth>12){
+                    return res.status(400).json({
+                        message: `Please provide valid month value for good ${i+1}`
+                    })
+                }
 
                 if(date.getFullYear()<endingYear){
                     return res.status(400).json({
