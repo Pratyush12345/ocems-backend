@@ -55,7 +55,7 @@ module.exports.webhook = async (req, res) => {
     const { entity } = payment
     const { order_id, status } = entity
 
-    console.log(req.body);
+    console.log(req.body.payload.payment.entity);
     if (status === 'captured') {
         console.log('webhook captured');
 
