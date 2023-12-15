@@ -41,6 +41,7 @@ module.exports.getMasterCopiesTypes = (req,res) => {
         })
     })
 }
+
 module.exports.getMasterCopies = (req,res) => {
     const adminuid = req.userData.uid
 
