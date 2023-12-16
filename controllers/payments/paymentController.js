@@ -84,9 +84,7 @@ module.exports.webhook = async (req, res) => {
 
 const capturedOrder = async (notes, timestamp) => {
     const { plantId, industryId, billId } = notes
-    console.log(plantId);
-    console.log(industryId);
-    console.log(billId);
+
     firestore.collection('plants').doc(plantId).get()
     .then(async plant => {
         if(plant.exists) {
