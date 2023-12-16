@@ -8,6 +8,18 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET
 })
 
+/**
+ * Requirements:
+ *  - amount
+ *  - currency
+ *  - receipt
+ *  - notes
+ *      - plant ID
+ *      - industry document id
+ *      - bill ID
+ *      - quotation number
+ */
+
 module.exports.createOrder = async (req, res) => {
     const { amount, currency, receipt, notes } = req.body
 
@@ -37,7 +49,6 @@ module.exports.verifyPayment = async (req, res) => {
     const digest = generatedSignature.digest('hex');
 
     if (digest === razorpay_signature) {
-
         return res.status(200).json({
             message: 'Payment Successful'
         })
@@ -54,18 +65,52 @@ module.exports.webhook = async (req, res) => {
     const { payment } = payload
     const { entity } = payment
     const { order_id, status } = entity
+    const { notes, created_at } = entity
 
-    console.log(req.body.payload.payment.entity);
     if (status === 'captured') {
-        console.log('webhook captured');
-
-        return res.status(200).json({
+        res.status(200).json({
             message: 'Payment Successful'
         })
+
+        const timestamp = new Date(created_at * 1000)
+        await capturedOrder(notes, timestamp)
     } else {
         console.log('webhook Failed')
         return res.status(400).json({
             message: 'Payment Failed'
         })
     }
+}
+
+const capturedOrder = async (notes, timestamp) => {
+    const { plantId, industryId, billId } = notes
+
+    firestore.collection('plants').doc(plantId).get()
+    .then(async plant => {
+        if(plant.exists) {
+            const industry = await firestore.collection('industries').doc(industryId).get()
+            
+            if(industry.exists) {
+                const bill = await firestore.collection('bills').doc(billId).get()
+                
+                if(bill.exists) {
+
+                    await firestore.collection(`plants/${plantId}/industryUsers`).doc(industryId).collection('bills').doc(billId).update({
+                        datePaid: timestamp.toUTCString(),
+                        dateUpdated: timestamp.toUTCString(),
+                        isPaid: true,
+                        paymentRecieptLink: ""
+                    })
+
+                } else {
+                    console.log('Bill does not exist')
+                }
+            } else {
+                console.log('Industry does not exist')
+            }
+        }
+    })
+    .catch(err => {
+        console.log(err);
+    })
 }
