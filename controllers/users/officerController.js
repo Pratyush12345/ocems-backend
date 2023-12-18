@@ -7,8 +7,23 @@ module.exports.signUp = async (req, res) => {
     const email = req.body.email
     const phoneNo = req.body.phoneNo
     const postName = req.body.postName
+    const departmentAccess = req.body.departmentAccess
     const adminid = req.userData.uid
 
+    // check if departmentAccess is an array
+    if(!Array.isArray(departmentAccess)){
+        return res.status(400).json({
+            message: "Department Access should be an array"
+        })
+    }
+
+    // check if departmentAccess is an array of strings
+    if(!departmentAccess.every((value) => typeof value === 'string')){
+        return res.status(400).json({
+            message: "Department Access should be an array of strings"
+        })
+    }
+    
     firestore.collection('users').doc(adminid).get()
     .then(user => {
         if(user.exists && user.get('roleName') === "Admin"){
@@ -19,6 +34,12 @@ module.exports.signUp = async (req, res) => {
                 })
             }
             
+            if(user.get('accessLevel') !== 1){
+                return res.status(401).json({
+                    message: "User does not have sufficient access level"
+                })
+            }
+
             let newPassword
             firestore.collection('plants').doc(user.get('plantID')).get()
             .then(async plant => {
@@ -56,6 +77,7 @@ module.exports.signUp = async (req, res) => {
                     roleName: "Officer",
                     plantID: user.get('plantID'),
                     phoneNo: phoneNo,
+                    departmentAccess: departmentAccess,
                     dateAdded: officer.metadata.creationTime
                 })
                 return newOfficer
