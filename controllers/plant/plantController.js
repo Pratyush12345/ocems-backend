@@ -2,6 +2,7 @@ const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 const Razorpay = require('razorpay')
 const axios = require('axios')
+const db = firebase.database()
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -809,13 +810,134 @@ module.exports.getDepartmentAccess = (req,res) => {
             })
         }
 
-        const db = firebase.database()
         const ref = db.ref(`DepartmentAccess/${plantID}`)
         const snapshot = await ref.once('value')
         const departmentAccess = snapshot.val()
 
         return res.status(200).json({
             departmentAccess: departmentAccess
+        })
+    })
+}
+
+module.exports.updateDepartmentAccess = (req,res) => {
+    const departmentAccess = req.body.departmentAccess
+    const adminid = req.userData.uid
+
+    // check if departmentAccess is an array
+    if(!Array.isArray(departmentAccess)){
+        return res.status(400).json({
+            message: "Department Access should be an array"
+        })
+    }
+
+    // check if departmentAccess is an array of strings
+    if(!departmentAccess.every((value) => typeof value === 'string')){
+        return res.status(400).json({
+            message: "Department Access should be an array of strings"
+        })
+    }
+
+    firestore.collection('users').doc(adminid).get()
+    .then(async admin => {
+        if(!admin.exists) {
+            return res.status(400).json({
+                message: 'Admin does not exist'
+            })
+        }
+
+        if(admin.data().accessLevel !== 1) {
+            return res.status(400).json({
+                message: 'Only Admin can perform this operation'
+            })
+        }
+        const plantID = admin.get('plantID')
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists) {
+            return res.status(400).json({
+                message: 'Plant does not exist'
+            })
+        }
+
+        const ref = db.ref(`DepartmentAccess/${plantID}`)
+        const snapshot = await ref.once('value')
+        const departmentAccessOld = snapshot.val()
+
+        // in the departmentAccessOld array add the new departments from departmentAccess array (make sure none of the departments are repeated)
+        departmentAccess.forEach(department => {
+            if(!departmentAccessOld.includes(department)) {
+                departmentAccessOld.push(department)
+            }
+        })
+
+        // replace the previous departmentAccess array with the new departmentAccessOld array in the database
+        await ref.set(departmentAccessOld)
+
+        return res.status(200).json({
+            message: 'Department access updated successfully'
+        })
+    })
+}
+
+module.exports.deleteDepartmentAccess = (req,res) => {
+    const departmentAccess = req.body.departmentAccess
+    const adminid = req.userData.uid
+
+    // check if departmentAccess is an array
+    if(!Array.isArray(departmentAccess)){
+        return res.status(400).json({
+            message: "Department Access should be an array"
+        })
+    }
+
+    // check if departmentAccess is an array of strings
+    if(!departmentAccess.every((value) => typeof value === 'string')){
+        return res.status(400).json({
+            message: "Department Access should be an array of strings"
+        })
+    }
+
+    firestore.collection('users').doc(adminid).get()
+    .then(async admin => {
+        if(!admin.exists) {
+            return res.status(400).json({
+                message: 'Admin does not exist'
+            })
+        }
+
+        if(admin.data().accessLevel !== 1) {
+            return res.status(400).json({
+                message: 'Only Admin can perform this operation'
+            })
+        }
+        const plantID = admin.get('plantID')
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists) {
+            return res.status(400).json({
+                message: 'Plant does not exist'
+            })
+        }
+
+        const ref = db.ref(`DepartmentAccess/${plantID}`)
+        const snapshot = await ref.once('value')
+        const departmentAccessOld = snapshot.val()
+
+        // in the departmentAccessOld array remove the departments from departmentAccess array (make sure none of the departments are repeated)
+        departmentAccess.forEach(department => {
+            if(departmentAccessOld.includes(department)) {
+                departmentAccessOld.splice(departmentAccessOld.indexOf(department), 1)
+            }
+        })
+
+        // replace the previous departmentAccess array with the new departmentAccessOld array in the database
+        await ref.set(departmentAccessOld)
+
+        return res.status(200).json({
+            message: 'Department access updated successfully'
         })
     })
 }
