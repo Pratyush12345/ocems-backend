@@ -1,9 +1,49 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
+module.exports.getMasterCopiesTypes = (req,res) => {
+    const adminuid = req.userData.uid
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel')!==1){
+            return res.status(401).json({
+                message: "Only admin can perform billing operations"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const billMasterTypes = await firestore.collection(`plants/${plantID}/billMasterCopy`).get()
+
+        const types = []
+        // get all unique types from bill master copies using the field 'type'
+        billMasterTypes.forEach(doc => {
+            if(!types.includes(doc.get('type'))){
+                types.push(doc.get('type'))
+            }
+        })
+
+        return res.status(200).json({
+            types: types
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
 module.exports.getMasterCopies = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -75,8 +115,7 @@ module.exports.createCopy = (req,res) => {
     const termsAndCondn = req.body.termsAndCondn
     const type = req.body.type
     const unit = req.body.unit
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -128,8 +167,7 @@ module.exports.createCopy = (req,res) => {
 module.exports.updateCopy = (req,res) => {
     const updates = req.body.updates
     const billMasterid = req.body.id
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -179,8 +217,7 @@ module.exports.updateCopy = (req,res) => {
 
 module.exports.deleteCopy = (req,res) => {
     const billMasterid = req.params.id
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
