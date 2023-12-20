@@ -81,6 +81,17 @@ module.exports.bulkAddInstruments = (req,res) => {
     const instrument_sheet = req.file
     const adminuid = req.userData.uid
 
+    // determin the last 5 characters of the file name
+    const fileExtension = instrument_sheet.filename.slice(-5)
+
+    // check if the file extension is .xlsx
+    if(fileExtension !== '.xlsx'){
+        fs.unlink(instrument_sheet.path, () => {})
+        return res.status(400).json({
+            message: "Only xlsx files are allowed"
+        })
+    }
+
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
         const plantID = admin.data().plantID
