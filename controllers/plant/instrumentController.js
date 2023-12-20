@@ -28,7 +28,7 @@ const header = [
     "InstrumentRangeFrom",
     "To",
     "InstrumentRangeTo",
-    "P&IDNo",
+    "PAndIDNo",
     "Purpose",
     "Qty",
     "Fluid",
@@ -199,6 +199,7 @@ module.exports.addInstrument = (req,res) => {
     const Sunbber = req.body.Sunbber
     const isActive = req.body.isActive
     const dateAdded = new Date().toLocaleString('en-US', options);
+    const Body = req.body
 
     // check if all the required fields are present
     for (let i = 0; i < requiredFields.length; i++) {
@@ -210,31 +211,59 @@ module.exports.addInstrument = (req,res) => {
         }
     }
 
-    // check if any of the number fields if present is not a number
-    for (let i = 0; i < numberFields.length; i++) {
-        const field = numberFields[i];
-        if(req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== "" && typeof req.body[field] !== 'number'){
-            return res.status(400).json({
-                message: `${field} must be a number`
-            })
-        }
-    }
+    let validationError = false;
 
-    // check if any of the string fields if present is not a string
-    for (let i = 0; i < stringFields.length; i++) {
-        const field = stringFields[i];
-        if(req.body[field] !== undefined && req.body[field] !== null && req.body[field] !== "" && typeof req.body[field] !== 'string'){
-            return res.status(400).json({
-                message: `${field} must be a string`
-            })
-        }
-    }
+    Object.keys(Body).forEach(key => {
+        const value = Body[key];
 
-    // isActive can only be Y or N 
-    if(isActive !== 'Y' && isActive !== 'N'){
-        return res.status(400).json({
-            message: "isActive must be Y or N"
-        })
+        // if key is not present in the headers array, set validationError to true
+        if (!header.includes(key)) {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} is not a valid field`
+            });
+            return;
+        }
+
+        // if the value is empty, set validationError to true
+        if (value === undefined || value === null || value === "") {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} value can't be empty`
+            });
+            return;
+        }
+
+        // if the key is in numberFields array and the value is not a number, set validationError to true
+        if (numberFields.includes(key) && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a number`
+            });
+            return;
+        }
+
+        // if the key is in stringFields array and the value is not a string, set validationError to true
+        if (stringFields.includes(key) && typeof value !== 'string') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string`
+            });
+            return;
+        }
+
+        // if the key is isActive and the value is not Y or N, set validationError to true
+        if (key === 'isActive' && value !== 'Y' && value !== 'N') {
+            validationError = true;
+            res.status(400).json({
+                message: "isActive must be Y or N"
+            });
+            return;
+        }
+    });
+
+    if(validationError){
+        return;
     }
 
     firestore.collection('users').doc(adminuid).get()
@@ -322,6 +351,7 @@ module.exports.updateInstrument = (req,res) => {
     const adminuid = req.userData.uid
     const TagNo = req.body.TagNo
     const updates = req.body.updates
+    const Body = updates
     
     // check if TagNo is present
     if(TagNo === undefined || TagNo === null || TagNo === ""){
@@ -337,24 +367,59 @@ module.exports.updateInstrument = (req,res) => {
         })
     }
 
-    // check if any of the number fields if present in the updates array is not a number
-    for (let i = 0; i < numberFields.length; i++) {
-        const field = numberFields[i];
-        if(updates[field] !== undefined && updates[field] !== null && updates[field] !== "" && typeof updates[field] !== 'number'){
-            return res.status(400).json({
-                message: `${field} must be a number`
-            })
-        }
-    }
+    let validationError = false;
 
-    // check if any of the string fields if present in the updates array is not a string
-    for (let i = 0; i < stringFields.length; i++) {
-        const field = stringFields[i];
-        if(updates[field] !== undefined && updates[field] !== null && updates[field] !== "" && typeof updates[field] !== 'string'){
-            return res.status(400).json({
-                message: `${field} must be a string`
-            })
+    Object.keys(Body).forEach(key => {
+        const value = Body[key];
+
+        // if key is not present in the headers array, set validationError to true
+        if (!header.includes(key)) {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} is not a valid field`
+            });
+            return;
         }
+
+        // if the value is empty, set validationError to true
+        if (value === undefined || value === null || value === "") {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} value can't be empty`
+            });
+            return;
+        }
+
+        // if the key is in numberFields array and the value is not a number, set validationError to true
+        if (numberFields.includes(key) && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a number`
+            });
+            return;
+        }
+
+        // if the key is in stringFields array and the value is not a string, set validationError to true
+        if (stringFields.includes(key) && typeof value !== 'string') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string`
+            });
+            return;
+        }
+
+        // if the key is isActive and the value is not Y or N, set validationError to true
+        if (key === 'isActive' && value !== 'Y' && value !== 'N') {
+            validationError = true;
+            res.status(400).json({
+                message: "isActive must be Y or N"
+            });
+            return;
+        }
+    });
+
+    if(validationError){
+        return;
     }
 
     firestore.collection('users').doc(adminuid).get()
@@ -409,6 +474,12 @@ module.exports.updateInstrument = (req,res) => {
         
         return res.status(200).json({
             message: 'Instrument updated successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }
@@ -477,6 +548,12 @@ module.exports.deleteInstrument = (req,res) => {
         
         return res.status(200).json({
             message: 'Instrument deleted successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }
