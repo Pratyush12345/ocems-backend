@@ -24,8 +24,7 @@ module.exports.createPlant = (req,res) => {
     const state = req.body.state
     const telNo = req.body.telNo
     const contactName = req.body.contactName
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const superadminuid = req.userData.uid
 
     // create a check for all fields to be present
     if(!cin || !city || !email || !gstin || !isActive || !pan || !phoneNo || !pincode || !plantAddress || !plantCapacityinMLD || !plantName || !state || !telNo) {
@@ -188,8 +187,7 @@ module.exports.createLinkedAccount = (req,res) => {
     const gst = req.body.gst
     const notes = req.body.notes
     const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const superadminuid = req.userData.uid
 
     // create a check for all fields to be present
     if(!email || !phone || !legal_business_name || !contact_name || !category || !subcategory || !street1 || !street2 || !city || !state || !postal_code || !country || !pan || !gst || !notes) {
@@ -360,8 +358,7 @@ module.exports.createLinkedAccount = (req,res) => {
 module.exports.createStakeholder = (req,res) => {
     const stakeholder = req.body.stakeholder
     const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const superadminuid = req.userData.uid
 
     if(!stakeholder) {
         return res.status(400).json({
@@ -525,8 +522,7 @@ module.exports.createStakeholder = (req,res) => {
 module.exports.acceptTnc = (req,res) => {
     const tncaccepted = req.body.tncaccepted
     const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const superadminuid = req.userData.uid
 
     // create a check for tncaccepted to be boolean
     if(typeof tncaccepted !== 'boolean') {
@@ -638,8 +634,7 @@ module.exports.addBankDetails = (req,res) => {
     const beneficiaryName = req.body.beneficiaryName
     const tncaccepted = req.body.tncaccepted
     const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const superadminuid = req.userData.uid
 
     // create a check for all fields to be present
     if(!bankAccountNo || !bankBranchAddress || !bankIFSCCode || !bankName || !beneficiaryName || !tncaccepted || !plantID) {

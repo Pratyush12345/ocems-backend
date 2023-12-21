@@ -9,34 +9,60 @@ module.exports.signUp = async (req, res) => {
     const postName = req.body.postName
     const departmentAccess = req.body.departmentAccess
     const adminid = req.userData.uid
-
-    // check if departmentAccess is an array
-    if(!Array.isArray(departmentAccess)){
-        return res.status(400).json({
-            message: "Department Access should be an array"
-        })
-    }
-
-    // check if departmentAccess is an array of strings
-    if(!departmentAccess.every((value) => typeof value === 'string')){
-        return res.status(400).json({
-            message: "Department Access should be an array of strings"
-        })
-    }
     
+    const requiredFields = ["name", "email", "phoneNo", "postName", "departmentAccess"]
+
+    for(let i=0; i<requiredFields.length; i++){
+        if(!req.body.hasOwnProperty(requiredFields[i])){
+            return res.status(400).json({
+                message: `${requiredFields[i]} is required`
+            })
+        } else if(requiredFields[i] === "departmentAccess"){
+            // check if departmentAccess is an array
+            if(!Array.isArray(req.body[requiredFields[i]])){
+                return res.status(400).json({
+                    message: "Department Access should be an array"
+                })
+            } else if(!req.body[requiredFields[i]].every((value) => typeof value === 'string')){
+                // check if departmentAccess is an array of strings
+                return res.status(400).json({
+                    message: "Department Access should be an array of strings"
+                })
+            }
+        } else if(typeof req.body[requiredFields[i]] !== "string"){
+            return res.status(400).json({
+                message: `${requiredFields[i]} should be a string`
+            })
+        } else if(req.body[requiredFields[i]].trim().length === 0){
+            return res.status(400).json({
+                message: `${requiredFields[i]} can't be empty`
+            })
+        }
+    }
+
+    // check if the email is valid
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(email)) {
+        return res.status(400).json({
+            message: 'Email is not valid'
+        })
+    }
+
+    // check if the phone number is valid
+    const phoneRegex = /^[0-9]{10}$/;
+    if(!phoneRegex.test(phoneNo)) {
+        return res.status(400).json({
+            message: 'Phone number is not valid'
+        })
+    }
+
     firestore.collection('users').doc(adminid).get()
     .then(user => {
         if(user.exists && user.get('roleName') === "Admin"){
 
-            if(user.get('plantID') === null || user.get('plantID') === undefined){
+            if(user.get('plantID') === null || user.get('plantID') === undefined || user.get('plantID') === ""){
                 return res.status(400).json({
                     message: "Please assign a plant to the admin before creating roles"
-                })
-            }
-            
-            if(user.get('accessLevel') !== 1){
-                return res.status(401).json({
-                    message: "User does not have sufficient access level"
                 })
             }
 
