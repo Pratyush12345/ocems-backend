@@ -68,13 +68,16 @@ const stringFields = [
     "isActive"
 ]
 
-const numberFields = [
+const stringOrNumberFields = [
     "InstrumentRangeFrom",
     "InstrumentRangeTo",
-    "Qty",
     "OCPress_Kg_cm2",
     "OCTemp_degC",
     "OCFlow_m3_hr"
+]
+
+const numberFields = [
+    "Qty",
 ]
 
 module.exports.bulkAddInstruments = (req,res) => {
@@ -118,6 +121,19 @@ module.exports.bulkAddInstruments = (req,res) => {
             const headerObtained = firstRow[i].trim()
             const headerRequired = header[i-1]
 
+            if(headerRequired === "PAndIDNo"){
+                if(headerObtained === "P&IDNo"){
+                    continue
+                } else {
+                    return res.status(400).json({
+                        message: "The header row format is wrong",
+                        metadata: {
+                            headerObtained: headerObtained,
+                            headerRequired: "P&IDNo"
+                        }
+                    })
+                }
+            }
             if(headerObtained !== headerRequired){
                 return res.status(400).json({
                     message: "The header row format is wrong",
@@ -159,7 +175,7 @@ module.exports.bulkAddInstruments = (req,res) => {
                     instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '')
                 }
 
-                if(cellValue){
+                if(cellValue !== undefined && cellValue !== null){
                     data[key] = cellValue
                 }
             }
@@ -259,6 +275,15 @@ module.exports.addInstrument = (req,res) => {
             validationError = true;
             res.status(400).json({
                 message: `${key} must be a string`
+            });
+            return;
+        }
+
+        // if the key is in stringOrNumberFields array and the value is not a string or a number, set validationError to true
+        if (stringOrNumberFields.includes(key) && typeof value !== 'string' && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string or a number`
             });
             return;
         }
@@ -419,6 +444,15 @@ module.exports.updateInstrument = (req,res) => {
             return;
         }
 
+        // if the key is in stringOrNumberFields array and the value is not a string or a number, set validationError to true
+        if (stringOrNumberFields.includes(key) && typeof value !== 'string' && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string or a number`
+            });
+            return;
+        }
+
         // if the key is isActive and the value is not Y or N, set validationError to true
         if (key === 'isActive' && value !== 'Y' && value !== 'N') {
             validationError = true;
@@ -565,6 +599,245 @@ module.exports.deleteInstrument = (req,res) => {
         console.log(err);
         return res.status(500).json({
             error: err
+        })
+    })
+}
+
+module.exports.addFilters = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const filters = req.body.filters
+
+    // check if filters is an array
+    if(!Array.isArray(filters)){
+        return res.status(400).json({
+            message: "Filters should be an array"
+        })
+    }
+
+    // check if the filter array matches the structure
+    for (let i = 0; i < filters.length; i++) {
+        const filter = filters[i];
+        if(!filter.hasOwnProperty("filterName") || !filter.hasOwnProperty("filterItem")){
+            return res.status(400).json({
+                message: "filterName and filterItem are required"
+            })
+        }
+
+        if(typeof filter.filterName !== "string"){
+            return res.status(400).json({
+                message: "filterName should be a string"
+            })
+        }
+
+        if(!Array.isArray(filter.filterItem)){
+            return res.status(400).json({
+                message: "filterItem should be an array"
+            })
+        }
+
+        if(!filter.filterItem.every((value) => typeof value === 'string' || typeof value === 'number')){
+            return res.status(400).json({
+                message: "filterItem should be an array of strings or numbers"
+            })
+        }
+
+        if(filter.filterItem.length === 0){
+            return res.status(400).json({
+                message: "filterItem can't be empty"
+
+            })
+        }
+
+        if(filter.filterName.trim().length === 0){
+            return res.status(400).json({
+                message: "filterName can't be empty"
+
+            })
+        }
+
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+
+        filters.map(async (filterObtained) => {
+            const filterObtainedName = filterObtained.filterName
+            const filterObtainedItems = filterObtained.filterItem
+
+            const filter = await firestore.collection(`plants/${plantID}/processFilterCategory`).where("filterName", "==", filterObtainedName).get()
+
+            // if filter exists, check the filterItems array and add those fields from the filterItems array which are not present in the filterItem array of the filter
+            if(!filter.empty){
+                const filterItem = filter.docs[0].data().filterItem
+
+                filterObtainedItems.forEach(item => {
+                    if(!filterItem.includes(item)){
+                        filterItem.push(item)
+                    }
+                })
+
+                await firestore.collection(`plants/${plantID}/processFilterCategory`).doc(filter.docs[0].id).update({
+                    filterItem: filterItem
+                })
+            } else {
+                // if filter does not exist, create a new filter
+                await firestore.collection(`plants/${plantID}/processFilterCategory`).add({
+                    filterName: filterObtainedName,
+                    filterItem: filterObtainedItems
+                })
+            }
+        })
+
+        return res.status(200).json({
+            message: 'Filter added successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
+module.exports.getFilters = async (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+
+        const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
+
+        let data = []
+        filters.forEach(filter => {
+            data.push(filter.data())
+        })
+
+        return res.status(200).json({
+            data: data
+        })
+    })
+}
+
+module.exports.getInstrCategories = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const categoryName = req.query.category
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin not found"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+        
+        let data = []
+        if(categoryName){
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
+
+            if(categoriesWithInstruments.empty){
+                return res.status(400).json({
+                    message: "No instruments found for the given category"
+                })
+            }
+
+            categoriesWithInstruments.forEach(category => {
+                category.data().instrArray.forEach(instrument => {
+                    data.push(instrument)
+                })
+            })
+
+            let instrumentArray = []
+            const promises = data.map(async (instrumentCode) => {
+                // using the instrument code, get the instrument name from the realtime database
+                let instrumentName = (await db.ref(`InstrumentCodes/${plantID}/${instrumentCode}`).once('value')).val()
+
+                // replace all the whitespaces in the instrument name
+                instrumentName = instrumentName.replace(/\s/g, '')
+
+                // fetch all the instruments from the firestore collection
+                const instruments = await firestore.collection(`plants/${plantID}/${instrumentName}`).get()
+
+                instruments.forEach(instrument => {
+                    instrumentArray.push(instrument.data())
+                })
+            })
+
+            await Promise.all(promises)
+
+            data = instrumentArray
+
+        } else {
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).get()
+
+            categoriesWithInstruments.forEach(category => {
+                data.push(category.data().categoryName)
+            })
+        }
+
+        return res.status(200).json({
+            data: data
         })
     })
 }
