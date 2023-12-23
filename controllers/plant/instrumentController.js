@@ -43,6 +43,7 @@ const header = [
     "dateAdded"
 ]
 
+// Purpose is not a required field- fix this
 const requiredFields = [
     "TagNo",
     "Instrument",
@@ -763,10 +764,38 @@ module.exports.getFilters = async (req,res) => {
     })
 }
 
+/**
+ * Search Queries
+ * 1. Instrument
+ * 2. Location
+ * 3. Fluid
+ * 4. TypeOfInstorWorkingPrinciple
+ * 5. I/O
+ * 6. Category
+ */
 module.exports.getInstrCategories = (req,res) => {
     // const adminuid = req.userData.uid
     const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
     const categoryName = req.query.category
+    const instrument = req.query.instrument
+    const location = req.query.location
+    const fluid = req.query.fluid
+    const typeOfInstorWorkingPrinciple = req.query.tiowp
+    const io = req.query.io
+
+    // if category is present, there can't be any other queries present
+    if(categoryName !== undefined && (instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined)){
+        return res.status(400).json({
+            message: "You can only query for category, no other queries are allowed"
+        })
+    }
+
+    // category query array can only contain one element
+    if(categoryName !== undefined && Array.isArray(categoryName) && categoryName.length > 1){
+        return res.status(400).json({
+            message: "You can only query for one category"
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -828,6 +857,8 @@ module.exports.getInstrCategories = (req,res) => {
 
             data = instrumentArray
 
+        } else if(instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined){
+            data = await searchQueries(req.query, plantID)
         } else {
             const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).get()
 
@@ -837,7 +868,107 @@ module.exports.getInstrCategories = (req,res) => {
         }
 
         return res.status(200).json({
+            count: data.length,
             data: data
         })
     })
+}
+
+function cartesianProduct(obj) {
+    const keys = Object.keys(obj);
+    const result = [];
+
+    function generate(current, index) {
+        if (index === keys.length) {
+        result.push({ ...current });
+        return;
+        }
+
+        const currentKey = keys[index];
+        const currentArray = obj[currentKey];
+
+        for (const value of currentArray) {
+        current[currentKey] = value;
+        generate(current, index + 1);
+        }
+    }
+
+    generate({}, 0);
+    return result;
+}
+
+const searchQueries = async (queryObject, plantID) => {
+    // CROSS PRODUCT
+
+    // if the query object consists of keys which are strings, convert them to arrays
+    let Query = {}
+    Object.keys(queryObject).forEach(key => {
+        let value = queryObject[key]
+
+        if(typeof value === "string"){
+            Query[key] = [value]
+        } else {
+            Query[key] = value
+        }
+    })
+
+    Query = cartesianProduct(Query)
+    console.log(Query);
+    let data = []
+
+    // get all the subcollections of the plants collections whose any document consists of TagNo
+    const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
+
+    const promises = collections.map(async (collection) => {
+        const querySnapshot = await collection.get();
+
+        querySnapshot.docs.forEach(doc => {
+            const DocData = doc.data()
+            if (DocData["TagNo"] && DocData["Location"] && DocData["Instrument"] && DocData["P&IDNo"] && DocData["isActive"]) {
+                Query.forEach(query => {
+                    const instrument = query["instrument"] ? query["instrument"].toLowerCase() : undefined
+                    const location = query["location"] ? query["location"].toLowerCase() : undefined
+                    const fluid = query["fluid"] ? query["fluid"].toLowerCase() : undefined
+                    const typeOfInstorWorkingPrinciple = query["tiowp"] ? query["tiowp"].toLowerCase() : undefined
+                    const io = query["io"] ? query["io"].toLowerCase() : undefined
+
+                    if(instrument && instrument !== DocData["Instrument"].toLowerCase()){
+                        return 
+                    } 
+                    if(fluid && DocData["Fluid"] && !DocData["Fluid"].toLowerCase().includes(fluid)){
+                        return 
+                    } else if(fluid && !DocData["Fluid"])
+                        return
+                    if(location && DocData["Location"] && !DocData["Location"].toLowerCase().includes(location)){
+                        return
+                    } 
+                    if(typeOfInstorWorkingPrinciple && DocData["TypeOfInstorWorkingPrinciple"]){
+                        if(typeof DocData["TypeOfInstorWorkingPrinciple"] === "string" && !DocData["TypeOfInstorWorkingPrinciple"].toLowerCase().includes(typeOfInstorWorkingPrinciple)){
+                            return
+                        } 
+                        if (typeof DocData["TypeOfInstorWorkingPrinciple"] === "number" && DocData["TypeOfInstorWorkingPrinciple"] !== typeOfInstorWorkingPrinciple){
+                            return
+                        }
+                    } else if(typeOfInstorWorkingPrinciple && !DocData["TypeOfInstorWorkingPrinciple"])
+                        return
+                    if(io && DocData["Location"]){
+                        if(io === "outlet"){
+                            let flag = false
+                            if(DocData["Location"].toLowerCase().includes("outlet"))
+                                flag = true
+                            if(!flag && !DocData["Location"].toLowerCase().includes("discharge"))
+                                return
+                        } else if (DocData["Location"] && !DocData["Location"].toLowerCase().includes(io))
+                            return
+                    }  
+
+                    data.push(DocData)
+                })
+            }
+        });
+    });
+
+    await Promise.all(promises)
+
+    return data
 }
