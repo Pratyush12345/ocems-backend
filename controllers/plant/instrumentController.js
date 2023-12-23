@@ -912,11 +912,37 @@ const searchQueries = async (queryObject, plantID) => {
         }
     })
 
-    Query = cartesianProduct(Query)
+    // Query = cartesianProduct(Query)
+    /*
+        Query: {
+            instrument: [ 'HORIZONTAL PUMP', 'AGIGATOR' ],
+            io: [ 'inlet' ],
+            location: [ 'FILTER BACKWASH PUMPS', 'ANTISCALANT DOSING TANK', 'RO CIP TANK' ],
+            fluid: [ 'Treated Water' ]
+        }
+    */
     console.log(Query);
     let data = []
 
-    // get all the subcollections of the plants collections whose any document consists of TagNo
+    let collection = firestore.collection(`plants`).doc(plantID).collection('Agitator')
+    
+    // Object.keys(Query).forEach(key => {
+    //     const value = Query[key]
+    //     // capitalize the first letter of the key
+    //     const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
+
+    // })
+    collection = collection.where("Location", 'in', ['CITRIC ACID DOSING PUMPS'])
+
+    const result = await collection.get()
+    result.forEach(doc => {
+        data.push(doc.data())
+    })
+    return data
+}
+
+/**
+
     const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
 
     const promises = collections.map(async (collection) => {
@@ -970,5 +996,6 @@ const searchQueries = async (queryObject, plantID) => {
 
     await Promise.all(promises)
 
-    return data
-}
+
+
+ */

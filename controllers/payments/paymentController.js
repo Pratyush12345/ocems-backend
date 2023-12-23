@@ -71,7 +71,7 @@ module.exports.webhook = async (req, res) => {
         res.status(200).json({
             message: 'Payment Successful'
         })
-
+        console.log(req.body);
         const timestamp = new Date(created_at * 1000)
         await capturedOrder(notes, timestamp)
     } else {

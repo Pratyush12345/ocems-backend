@@ -1,5 +1,130 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
+const storage = firebase.storage()
+const bucket = storage.bucket()
+const fs = require('fs')
+
+module.exports.getBills = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const industryid = req.params.industryid
+    const billid = req.query.bill
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel')!==1){
+            return res.status(401).json({
+                message: "Only admin can perform billing operations"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry Not found"
+            })
+        }
+
+        let query = firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills')
+        if(billid!==undefined){
+            query = query.doc(billid)
+
+            const bill = await query.get()
+            if(!bill.exists){
+                return res.status(404).json({
+                    message: "Bill not found"
+                })
+            }
+
+            return res.status(200).json({
+                bill: {
+                    id: bill.id,
+                    data: bill.data()
+                }
+            })
+        }
+        const bills = await query.get()
+        let billsArray = []
+
+        bills.forEach(bill => {
+            billsArray.push({
+                id: bill.id,
+                data: bill.data()
+            })
+        })
+
+        return res.status(200).json({
+            bills: billsArray
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
+module.exports.getBillApprovalRequests = async (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel')!==1){
+            return res.status(401).json({
+                message: "Only admin can perform billing operations"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const requests = await firestore.collection(`plants/${plantID}/billAprrovalRequests`).get()
+        let requestsArray = []
+
+        const promise = requests.docs.map(async request => {
+            const data = request.data()
+            const industryid = data.industryid
+            const billid = data.billid
+
+            const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).get()
+            if(bill.exists){
+                requestsArray.push({
+                    id: bill.id,
+                    industryid: industryid,
+                    data: bill.data(),
+                })
+            }
+        })
+
+        await Promise.all(promise)
+
+        return res.status(200).json({
+            requests: requestsArray
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
 
 module.exports.createBill = async (req, res) => {
     const description = req.body.description
@@ -201,12 +326,13 @@ module.exports.createBill = async (req, res) => {
 
 module.exports.uploadPaymentReciept = (req,res) => {
     const billid = req.body.billid
-    const industryuid = req.userData.uid
+    // const industryuid = req.userData.uid
+    const industryuid = "EwQz3bU3VieSP6eFYBCilGoc8vI3"
+    const filePath = req.file.path
 
     firebase.auth().getUser(industryuid)
     .then(async industry => {
         const plantID = industry.customClaims.plantID
-        const filePath = req.file.path
         const industrydocid = industry.customClaims.industryid
 
         const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).get()
@@ -216,14 +342,100 @@ module.exports.uploadPaymentReciept = (req,res) => {
             })
         }
 
+        // upload file to firebase storage
+        const uploadedFile = await bucket.upload(filePath, {
+            destination: `plants/${plantID}/industryUsers/${industrydocid}/bills/${billid}/${Date.now()}-${req.file.originalname}`,
+        })
+
+        // get the file url
+        const fileRef = storage.bucket().file(uploadedFile[0].name)
+        const fileUrl = await fileRef.getSignedUrl({
+            action: 'read',
+            expires: '03-09-2491'
+        })
+
         await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).update({
+            dateUpdated: new Date().toUTCString(),
             datePaid: new Date().toUTCString(),
-            isPaid: true,
-            paymentRecieptLink: filePath
+            paymentRecieptLink: fileUrl[0]
+        })
+
+        // add the reciept for approval from admin
+        await firestore.collection(`plants/${plantID}/billAprrovalRequests`).doc(billid).set({
+            dateAdded: new Date().toUTCString(),
+            industryid: industrydocid,
+            plantID: plantID,
+            billid: billid
         })
         
+        // delete the file from local storage
+        fs.unlinkSync(filePath)
         return res.status(200).json({
             message: "Reciept uploaded successfully"
+        })
+    })
+    .catch(err => {
+        fs.unlinkSync(filePath)
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
+module.exports.processBill = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const requestId = req.params.requestid
+    const decision = req.params.decision
+
+    if(decision!=="approve" && decision!=="reject"){
+        return res.status(400).json({
+            message: "Please provide a valid decision"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin not found"
+            })
+        }
+
+        if(admin.get('accessLevel')!==1){
+            return res.status(401).json({
+                message: "Only admin can perform this operation"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const request = await firestore.collection(`plants/${plantID}/billAprrovalRequests`).doc(requestId).get()
+        if(!request.exists){
+            return res.status(404).json({
+                message: "Request not found"
+            })
+        }
+
+        const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(request.get('industryid')).collection('bills').doc(request.get('billid')).get()
+        if(!bill.exists){
+            return res.status(404).json({
+                message: "Bill not found"
+            })
+        }
+        
+        const isPaid = decision === "approve" ? true : false
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(request.get('industryid')).collection('bills').doc(request.get('billid')).update({
+            dateUpdated: new Date().toUTCString(),
+            isPaid: isPaid
+        })
+        
+        // delete the request
+        await firestore.collection(`plants/${plantID}/billAprrovalRequests`).doc(requestId).delete()
+
+        return res.status(200).json({
+            message: "Bill processed successfully"
         })
     })
     .catch(err => {
