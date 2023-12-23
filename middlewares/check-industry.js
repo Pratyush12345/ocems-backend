@@ -1,8 +1,7 @@
 const firebase = require('../config/firebase')
 
 module.exports = (req, res, next) => {
-    // const industryuid = req.userData.uid
-    const industryuid = "EwQz3bU3VieSP6eFYBCilGoc8vI3"
+    const industryuid = req.userData.uid
 
     firebase.auth().getUser(industryuid)
     .then(industry => {

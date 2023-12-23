@@ -3,6 +3,8 @@ const router = express.Router()
 const plantController = require('../../controllers/plant/plantController')
 const checkAuth = require('../../middlewares/check-auth')
 
+router.use('/instrument', require('./instrument'))
+
 // Department Access routes
 router.get('/department', checkAuth, plantController.getDepartmentAccess)
 router.patch('/department/update', checkAuth, plantController.updateDepartmentAccess)

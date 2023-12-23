@@ -1,12 +1,11 @@
 const firebase = require('../config/firebase')
 
 module.exports = (req, res, next) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firebase.auth().getUser(adminuid)
-    .then(admin => {
-        if(admin.customClaims.role !== 'admin'){
+    .then(async admin => {
+        if(admin.customClaims.accessLevel !== 1){
             return res.status(400).json({
                 message: "Only an admin can access this route"
             })
@@ -15,8 +14,8 @@ module.exports = (req, res, next) => {
     })
     .catch(err => {
         console.log(err);
-        return res.status(500).json({
-            error: err
+        return res.status(404).json({
+            message: "Admin doesn't exist"
         })
     })
 }

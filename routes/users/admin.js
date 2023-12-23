@@ -8,6 +8,6 @@ router.get('/getadmin', checkAuth, adminController.getAdmin)
 router.post('/signup', checkAuth, adminController.signUp)
 
 router.patch('/update', checkAuth, adminController.updateAdmin)
-router.delete('/delete', checkAuth, adminController.deleteAdmin)
+router.delete('/delete/:adminuid', checkAuth, adminController.deleteAdmin)
 
 module.exports = router

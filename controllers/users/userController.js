@@ -17,7 +17,7 @@ module.exports.getUser = (req,res) => {
         });
     })
     .catch((error) => {
-        console.error('Error getting user:', error);
+        console.error(error);
         return res.status(500).json({
             message: 'Internal Server Error',
         });
@@ -37,6 +37,11 @@ module.exports.getUsers = (req,res) => {
     let query = firestore.collection('users').where('plantID', '==', plantID)
 
     if (accessLevel !== undefined) {
+        if(accessLevel === "0"){
+            return res.status(400).json({
+                message: "Please provide a valid access level."
+            })
+        }
         query = query.where('accessLevel', '==', Number(accessLevel))
     }
 
@@ -61,7 +66,7 @@ module.exports.getUsers = (req,res) => {
         });
     })
     .catch((error) => {
-        console.error('Error getting users:', error);
+        console.error(error);
         return res.status(500).json({
             message: 'Internal Server Error',
         });
@@ -72,6 +77,42 @@ module.exports.updateUser = (req,res) => {
     const adminuid = req.userData.uid
     const useruid = req.params.useruid
     const updatedData = req.body.updateData
+
+    const prohibitedFields = ["accessLevel", "mailID", "roleName", "isSuspended", "plantID", "dateAdded"]
+    const updateableFields = ["name", "postName", "phoneNo", "departmentAccess"]
+
+    // check if the updatedData object contains any prohibited fields
+    for(let i=0; i<prohibitedFields.length; i++){
+        if(updatedData.hasOwnProperty(prohibitedFields[i])){
+            return res.status(400).json({
+                message: `${prohibitedFields[i]} can't be updated`
+            })
+        }
+    }
+
+    // check if the updatedData object contains any updateable fields and if they are valid strings and non empty
+    for(let i=0; i<updateableFields.length; i++){
+        if(updatedData.hasOwnProperty(updateableFields[i])){
+            if(typeof updatedData[updateableFields[i]] !== "string"){
+                return res.status(400).json({
+                    message: `${updateableFields[i]} should be a string`
+                })
+            } else if(updatedData[updateableFields[i]].trim().length === 0){
+                return res.status(400).json({
+                    message: `${updateableFields[i]} can't be empty`
+                })
+            }
+        }
+    }
+
+    // check if the updatedData contains any fields which are not in updateableFields and in prohibitedFields
+    for(let key in updatedData){
+        if(!updateableFields.includes(key) && !prohibitedFields.includes(key)){
+            return res.status(400).json({
+                message: `${key} is not a valid field to update`
+            })
+        }
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async user => {
