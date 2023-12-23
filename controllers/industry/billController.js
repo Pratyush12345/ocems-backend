@@ -5,8 +5,7 @@ const bucket = storage.bucket()
 const fs = require('fs')
 
 module.exports.getBills = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const industryid = req.params.industryid
     const billid = req.query.bill
 
@@ -75,8 +74,7 @@ module.exports.getBills = (req,res) => {
 }
 
 module.exports.getBillApprovalRequests = async (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -326,8 +324,7 @@ module.exports.createBill = async (req, res) => {
 
 module.exports.uploadPaymentReciept = (req,res) => {
     const billid = req.body.billid
-    // const industryuid = req.userData.uid
-    const industryuid = "EwQz3bU3VieSP6eFYBCilGoc8vI3"
+    const industryuid = req.userData.uid
     const filePath = req.file.path
 
     firebase.auth().getUser(industryuid)
@@ -384,8 +381,7 @@ module.exports.uploadPaymentReciept = (req,res) => {
 }
 
 module.exports.processBill = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const adminuid = req.userData.uid
     const requestId = req.params.requestid
     const decision = req.params.decision
 
