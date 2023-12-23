@@ -60,14 +60,40 @@ module.exports.verifyPayment = async (req, res) => {
     }
 }
 
+/**
+ * Requirements:
+ *  - id
+ *  - order_id
+ *  - method
+ *  - status
+ *  - card_id
+ *  - bank
+ *  - wallet
+ *  - vpa
+ *  - fee
+ *  - tax
+ *  - acquirer_data
+ */
 module.exports.webhook = async (req, res) => {
     const { payload } = req.body
     const { payment } = payload
     const { entity } = payment
-    const { order_id, status } = entity
-    const { notes, created_at } = entity
-    console.log(req.body);
-    console.log(req.body.payload.payment.entity);
+    const { id, order_id, status, method, card_id, bank, wallet, vpa, fee, tax, acquirer_data, notes, created_at } = entity
+
+    const payment_data = {
+        id,
+        order_id,
+        status,
+        method,
+        card_id,
+        bank,
+        wallet,
+        vpa,
+        fee,
+        tax,
+        acquirer_data,
+        created_at
+    }
 
     if (status === 'captured') {
         res.status(200).json({
@@ -75,7 +101,7 @@ module.exports.webhook = async (req, res) => {
         })
 
         const timestamp = new Date(created_at * 1000)
-        await capturedOrder(notes, timestamp)
+        await capturedOrder(notes, timestamp, payment_data)
     } else {
         console.log('webhook Failed')
         return res.status(400).json({
@@ -84,7 +110,7 @@ module.exports.webhook = async (req, res) => {
     }
 }
 
-const capturedOrder = async (notes, timestamp) => {
+const capturedOrder = async (notes, timestamp, payment_data) => {
     const { plantId, industryId, billId } = notes
 
     firestore.collection('plants').doc(plantId).get()
@@ -101,6 +127,7 @@ const capturedOrder = async (notes, timestamp) => {
                         datePaid: timestamp.toUTCString(),
                         dateUpdated: timestamp.toUTCString(),
                         isPaid: true,
+                        paymentData: payment_data,
                         paymentRecieptLink: ""
                     })
 
