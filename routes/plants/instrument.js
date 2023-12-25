@@ -17,9 +17,9 @@ const excelSheetStorage = multer({
     })
 }).single("instrument_sheet")
 
-router.get('/', instrumentController.getInstrCategories)
-router.get('/filters', instrumentController.getFilters)
-router.post('/add/filters', instrumentController.addFilters)
+router.get('/', checkAuth, instrumentController.getInstrCategories)
+router.get('/filters', checkAuth, instrumentController.getFilters)
+router.post('/add/filters', checkAuth, checkAdmin, instrumentController.addFilters)
 router.post('/add/bulk', checkAuth, checkAdmin, excelSheetStorage, instrumentController.bulkAddInstruments)
 router.post('/add', checkAuth, instrumentController.addInstrument)
 router.patch('/update', checkAuth, instrumentController.updateInstrument)

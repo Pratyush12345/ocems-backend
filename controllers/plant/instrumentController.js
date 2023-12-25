@@ -152,46 +152,59 @@ module.exports.bulkAddInstruments = (req,res) => {
         // json object containing instrument codes as "instrumentCode": "instrumentName"
         const instrumentCodesData = instrumentCodes.val() 
         
+        let jsonArray = []
         // traverse through the rows of the sheet
-        worksheet.eachRow(async (row, rowNumber) => {
-            if(rowNumber === 1) return // skip the first row (header row)
 
-            // rowData contains the entire data of an instrument
+        const promises = [];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber === 1) return; // skip the first row (header row)
+
             const rowData = row.values;
-
-            // data to store in firestore instrumentName collection
-            let data = {}
-            let instrumentName
+            let data = {};
+            let instrumentName;
 
             for (let j = 1; j < firstRow.length; j++) {
-                // key contains the key against which the data is to be stored
-                const key = firstRow[j].trim()
-
-                // get the cell value of the current row
+                const key = firstRow[j].trim();
                 let cellValue = rowData[j];
-                
-                // get the instrument name from the instrument code using realtime database
-                if(j === 1){
-                    let instrumentCode = extractInstrumentCode(cellValue).trim()
-                    instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '')
+
+                if (j === 1) {
+                    let instrumentCode = extractInstrumentCode(cellValue).trim();
+                    instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '');
                 }
 
-                if(cellValue !== undefined && cellValue !== null){
-                    data[key] = cellValue
+                if (cellValue !== undefined && cellValue !== null) {
+                    data[key] = cellValue;
                 }
             }
-            // add the dateAdded field to the data object
+
             data["dateAdded"] = new Date().toLocaleString('en-US', options);
 
-            // check if the instrument with the given tag number already exists in the instrumentName collection
-            const instrument = await firestore.collection('plants').doc(plantID).collection(instrumentName).where("TagNo", '==', data["TagNo"]).get()
+            const instrumentPromise = firestore.collection('plants').doc(plantID).collection(instrumentName).where("TagNo", '==', data["TagNo"]).get()
+                .then(async instrument => {
+                    if (instrument.empty) {
+                        await firestore.collection('plants').doc(plantID).collection(instrumentName).add(data)
+                        jsonArray.push(data)
+                    }
+                    return Promise.resolve();
+                });
 
-            // if no instrument with the given tag number exists, add the instrument to the instrumentName collection
-            if(instrument.empty){
-                await firestore.collection('plants').doc(plantID).collection(instrumentName).add(data)
+            promises.push(instrumentPromise);
+        });
+
+        await Promise.all(promises);
+
+        const jsonToStore = {
+            data: jsonArray
+        }
+
+        // store the instruments data locally
+        fs.writeFile(`./data/instruments/${plantID}.json`, JSON.stringify(jsonToStore), (err) => {
+            if(err){
+                console.log(err);
             }
         })
-
+        
         return res.status(200).json({
             message: 'Instrument(s) added successfully'
         })
@@ -605,8 +618,7 @@ module.exports.deleteInstrument = (req,res) => {
 }
 
 module.exports.addFilters = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const filters = req.body.filters
 
     // check if filters is an array
@@ -724,8 +736,7 @@ module.exports.addFilters = (req,res) => {
 }
 
 module.exports.getFilters = async (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -774,8 +785,7 @@ module.exports.getFilters = async (req,res) => {
  * 6. Category
  */
 module.exports.getInstrCategories = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const categoryName = req.query.category
     const instrument = req.query.instrument
     const location = req.query.location
@@ -874,32 +884,7 @@ module.exports.getInstrCategories = (req,res) => {
     })
 }
 
-function cartesianProduct(obj) {
-    const keys = Object.keys(obj);
-    const result = [];
-
-    function generate(current, index) {
-        if (index === keys.length) {
-        result.push({ ...current });
-        return;
-        }
-
-        const currentKey = keys[index];
-        const currentArray = obj[currentKey];
-
-        for (const value of currentArray) {
-        current[currentKey] = value;
-        generate(current, index + 1);
-        }
-    }
-
-    generate({}, 0);
-    return result;
-}
-
 const searchQueries = async (queryObject, plantID) => {
-    // CROSS PRODUCT
-
     // if the query object consists of keys which are strings, convert them to arrays
     let Query = {}
     Object.keys(queryObject).forEach(key => {
@@ -912,32 +897,122 @@ const searchQueries = async (queryObject, plantID) => {
         }
     })
 
-    // Query = cartesianProduct(Query)
-    /*
-        Query: {
-            instrument: [ 'HORIZONTAL PUMP', 'AGIGATOR' ],
-            io: [ 'inlet' ],
-            location: [ 'FILTER BACKWASH PUMPS', 'ANTISCALANT DOSING TANK', 'RO CIP TANK' ],
-            fluid: [ 'Treated Water' ]
-        }
-    */
-    console.log(Query);
     let data = []
 
-    let collection = firestore.collection(`plants`).doc(plantID).collection('Agitator')
+    // get all the collections in the plant
+    const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
+
+    if(Query['instrument'] || Query['tiowp'] || Query['fliud']){
+        const promises = collections.map(async (collection) => {
+            let query = collection
+            const Instrument = Query["instrument"]
+            const TypeOfInstorWorkingPrinciple = Query["tiowp"]
+            const Fluid = Query["fluid"]
+
+            if(Instrument){
+                query = query.where("Instrument", 'in', Instrument)
+            }
+            if(TypeOfInstorWorkingPrinciple){
+                query = query.where("TypeOfInstorWorkingPrinciple", 'in', TypeOfInstorWorkingPrinciple)
+            }
+            if(Fluid){
+                query = query.where("Fluid", 'in', Fluid)
+            }
+
+            const result = await query.get()
+            result.forEach(doc => {
+                data.push(doc.data())
+            })
+        })
+        
+        await Promise.all(promises)
+    }
     
-    // Object.keys(Query).forEach(key => {
-    //     const value = Query[key]
-    //     // capitalize the first letter of the key
-    //     const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1)
+    const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
 
-    // })
-    collection = collection.where("Location", 'in', ['CITRIC ACID DOSING PUMPS'])
+    let lioData = []
+    if(Query["location"] || Query["io"]){
 
-    const result = await collection.get()
-    result.forEach(doc => {
-        data.push(doc.data())
-    })
+        if(Query["location"] && Query["io"]){
+            // while writing code, keep in mind that Query["location"] and Query["io"] are arrays
+            const locationArray = Query["location"]
+            const ioArray = Query["io"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+
+                for (let j = 0; j < locationArray.length; j++) {
+                    
+                    if(instrument["Location"].toLowerCase().includes(locationArray[j].toLowerCase())){
+                        for (let k = 0; k < ioArray.length; k++) {
+                            if(ioArray[k] === "outlet"){
+                                let flag = false
+                                if(instrument["Location"].toLowerCase().includes("outlet"))
+                                    flag = true
+                                if(!flag && !instrument["Location"].toLowerCase().includes("discharge"))
+                                    continue
+                            } else if (!instrument["Location"].toLowerCase().includes(ioArray[k].toLowerCase())){
+                                continue
+                            }
+
+                            lioData.push(instrument)
+                        }
+                    }
+                }
+            }    
+        } else if(Query["location"]) {
+            const locationArray = Query["location"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+                
+                for (let j = 0; j < locationArray.length; j++) {
+                    if(instrument["Location"].toLowerCase().includes(locationArray[j].toLowerCase())){
+                        lioData.push(instrument)
+                    }
+                }
+            }
+        } else if(Query["io"]) {
+            const ioArray = Query["io"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+                
+                for (let j = 0; j < ioArray.length; j++) {
+
+                    if(ioArray[j] === "outlet"){
+                        let flag = false
+                        if(instrument["Location"].toLowerCase().includes("outlet"))
+                            flag = true
+                        if(!flag && !instrument["Location"].toLowerCase().includes("discharge"))
+                            continue
+                    } else if (!instrument["Location"].toLowerCase().includes(ioArray[j].toLowerCase()))
+                        continue
+
+                    lioData.push(instrument)
+                }
+            }
+        }  
+    }
+
+    if(data.length !== 0 && lioData.length !== 0){
+        // if an element of data is not present in lioData, remove it from data
+        data = data.filter((instrument) => {
+            for (let i = 0; i < lioData.length; i++) {
+                const lioInstrument = lioData[i];
+                if(instrument["TagNo"] === lioInstrument["TagNo"]){
+                    return true
+                }
+            }
+            return false
+        })
+    } else if(data.length !== 0){
+        if(Query["location"] || Query["io"]){
+            data = []
+        }
+    } else if(lioData.length !== 0){
+        data = lioData
+    }
     return data
 }
 
