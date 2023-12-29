@@ -354,7 +354,8 @@ module.exports.uploadPaymentReciept = (req,res) => {
         await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).update({
             dateUpdated: new Date().toUTCString(),
             datePaid: new Date().toUTCString(),
-            paymentRecieptLink: fileUrl[0]
+            paymentRecieptLink: fileUrl[0],
+            paymentRecieptPath: uploadedFile[0].name,
         })
 
         // add the reciept for approval from admin
@@ -477,6 +478,12 @@ module.exports.deleteCopy = (req,res) => {
             return res.status(404).json({
                 message: "Bill not found"
             })
+        }
+
+        // delete the reciept from firebase storage
+        const filePath = bill.get('paymentRecieptPath')
+        if(filePath!=="" || filePath!==undefined){
+            await bucket.file(filePath).delete()
         }
 
         // delete bill
