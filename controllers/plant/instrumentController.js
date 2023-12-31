@@ -397,6 +397,115 @@ module.exports.addInstrument = (req,res) => {
     })
 }
 
+module.exports.addInstrumentsModbusAddress = (req,res) => {
+    const adminuid = req.userData.uid
+    const data = req.body.data
+
+    // check if data is an array
+    if(!Array.isArray(data)){
+        return res.status(400).json({
+            message: "Data should be an array"
+        })
+    }
+
+    // check if the data array matches the structure
+    for (let i = 0; i < data.length; i++) {
+        const instrument = data[i];
+        if(!instrument.hasOwnProperty("TagNo") || !instrument.hasOwnProperty("address")){
+            return res.status(400).json({
+                message: "TagNo and modbusAddress are required"
+            })
+        }
+
+        // if any other field is present in the instrument object, return an error
+        if(Object.keys(instrument).length !== 2){
+            return res.status(400).json({
+                message: "Only TagNo and address are allowed"
+            })
+        }
+
+        if(typeof instrument.TagNo !== "string"){
+            return res.status(400).json({
+                message: "TagNo should be a string"
+            })
+        }
+
+        if(typeof instrument.address !== "number"){
+            return res.status(400).json({
+                message: "address should be a number"
+            })
+        }
+
+        if(instrument.TagNo.trim().length === 0){
+            return res.status(400).json({
+                message: "TagNo can't be empty"
+
+            })
+        }
+    }
+
+    // check if the address is unique
+    const addresses = data.map((instrument) => instrument.address)
+    const uniqueAddresses = [...new Set(addresses)]
+    
+    if(addresses.length !== uniqueAddresses.length){
+        return res.status(400).json({
+            message: "The addresses should be unique"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        // get the local instruments json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        // from the data array obtained from the request, check if the TagNo exists in the local instruments json file
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            const TagNo = instrument.TagNo
+
+            let found = false
+            for (let j = 0; j < data.length; j++) {
+                const instrToAdd = data[j];
+                if(instrToAdd.TagNo === TagNo){
+                    found = true
+                    break
+                }
+            }
+
+            if(!found){
+                return res.status(400).json({
+                    message: `No instrument found with the TagNo ${TagNo}`
+                })
+            }
+        }
+
+        return res.status(200).json({
+            message: 'Modbus address added successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
 module.exports.updateInstrument = (req,res) => {
     const adminuid = req.userData.uid
     const TagNo = req.body.TagNo
