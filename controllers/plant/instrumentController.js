@@ -531,6 +531,19 @@ module.exports.updateInstrument = (req,res) => {
         // update the instrument
         await firestore.collection('plants').doc(plantID).collection(instrumentName).doc(instrument.docs[0].id).update(updates)
         
+        // update the instrument in the local json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            if(instrument["TagNo"] === TagNo){
+                Object.keys(updates).forEach(key => {
+                    instrument[key] = updates[key]
+                })
+                break
+            }
+        }
+
         return res.status(200).json({
             message: 'Instrument updated successfully'
         })
@@ -605,6 +618,17 @@ module.exports.deleteInstrument = (req,res) => {
         // delete the instrument
         await firestore.collection('plants').doc(plantID).collection(instrumentName).doc(instrument.docs[0].id).delete()
         
+        // delete the instrument from the local json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            if(instrument["TagNo"] === TagNo){
+                plantInstruments.splice(i,1)
+                break
+            }
+        }
+
         return res.status(200).json({
             message: 'Instrument deleted successfully'
         })
@@ -902,7 +926,7 @@ const searchQueries = async (queryObject, plantID) => {
     // get all the collections in the plant
     const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
 
-    if(Query['instrument'] || Query['tiowp'] || Query['fliud']){
+    if(Query['instrument'] || Query['tiowp'] || Query['fluid']) {
         const promises = collections.map(async (collection) => {
             let query = collection
             const Instrument = Query["instrument"]

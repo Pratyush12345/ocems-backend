@@ -3,6 +3,7 @@ const firestore = firebase.firestore()
 const storage = firebase.storage()
 const bucket = storage.bucket()
 const fs = require('fs')
+const { getMessaging } = require('firebase-admin/messaging');
 
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
@@ -310,6 +311,19 @@ module.exports.createBill = async (req, res) => {
             amount: amount
         })
 
+        // send notification to industry
+        const fcm_token = industry.get('fcm_token')
+
+        const message = {
+            notification: {
+                title: "New Bill",
+                body: `A new bill has been issued by the plant. Check it out now!`
+            },
+            token: fcm_token
+        }
+
+        await getMessaging().send(message)
+        
         return res.status(200).json({
             message: "Bill created successfully"
         })
@@ -365,7 +379,25 @@ module.exports.uploadPaymentReciept = (req,res) => {
             plantID: plantID,
             billid: billid
         })
-        
+
+        // send notification to admin
+        // get plant 
+        const plant = await firestore.collection('plants').doc(plantID).get()
+        const adminuid = plant.get('selectedAdmin')
+
+        const admin = await firestore.collection('users').doc(adminuid).get()
+        const fcm_token = admin.get('fcm_token')
+
+        const message = {
+            notification: {
+                title: "New Bill Payment",
+                body: `A new bill payment receipt has been uploaded by the industry.`
+            },
+            token: fcm_token
+        }
+
+        await getMessaging().send(message)
+    
         // delete the file from local storage
         fs.unlinkSync(filePath)
         return res.status(200).json({

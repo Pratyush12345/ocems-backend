@@ -3,6 +3,7 @@ const firestore = firebase.firestore()
 const storage = firebase.storage()
 const bucket = storage.bucket()
 const fs = require('fs');
+const { getMessaging } = require('firebase-admin/messaging');
 
 module.exports.getNotices = (req,res) => {
     const adminuid = req.userData.uid
@@ -99,7 +100,8 @@ module.exports.createNotice = (req,res) => {
                 })
             }
         }
-
+        
+        // upload the files to the storage
         let attachments = []
         for (let i = 0; i < notices.length; i++) {
             const notice = notices[i];
@@ -133,6 +135,24 @@ module.exports.createNotice = (req,res) => {
             isNew: true,
             title: title
         })
+
+        // send notification to all industries
+        for (let i = 0; i < industries.length; i++) {
+            const industryid = industries[i];
+            
+            const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+            const fcm_token = industry.get('fcm_token')
+
+            const message = {
+                notification: {
+                    title: "New Notice",
+                    body: `A new notice has been issued by the plant.`
+                },
+                token: fcm_token
+            }
+
+            await getMessaging().send(message)
+        }
 
         // delete the files from the uploads folder
         for (let i = 0; i < notices.length; i++) {
