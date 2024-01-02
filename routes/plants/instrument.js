@@ -17,6 +17,8 @@ const excelSheetStorage = multer({
     })
 }).single("instrument_sheet")
 
+router.use('/modbus', require('./modbus'))
+
 router.get('/', checkAuth, instrumentController.getInstrCategories)
 router.get('/filters', checkAuth, instrumentController.getFilters)
 router.post('/add/filters', checkAuth, checkAdmin, instrumentController.addFilters)

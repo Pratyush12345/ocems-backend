@@ -24,7 +24,7 @@ app.use((req,res,next) => {
     next();
 })
 
-require('./config/modbus')
+// require('./config/modbus')
 
 app.use('/', require('./routes/home'));
 

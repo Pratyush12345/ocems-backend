@@ -138,6 +138,19 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
     })
 }
 
+module.exports.addReport = async (plantID, address, timestamp, value) => {
+    try {
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(plant.exists){
+            
+        }
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 module.exports.getAllAddress = (req,res) => {
     // const adminuid = req.userData.uid
     const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
@@ -342,31 +355,17 @@ module.exports.getReport = (req,res) => {
                 }
             })
         } else {
-            // const allAddresses = await firestore.collection(`plants/${plantID}/InstrumentData`).get()
+            const allAddresses = await firestore.collection(`plants/${plantID}/InstrumentData`).get()
 
-            // const promises = allAddresses.docs.map(async (address) => {
-            //     // get all the reports of the address ordered by their createTime
-                
-                const reports = await firestore.collection(`plants/${plantID}/InstrumentData/0/reports`).get()
-
-                // sort the reports on the basis of their createTime
-                const sortedReports = reports.docs.sort((a,b) => {
-                    return a.createTime.seconds - b.createTime.seconds
+            const promises = allAddresses.docs.map(async (address) => {
+                dataToReturn.push({
+                    address: parseInt(address.id),
+                    TagNo: address.data().TagNo,
+                    data: address.data().latestData
                 })
+            })
 
-                // get the last report
-                const lastReport = sortedReports[sortedReports.length - 1]
-
-                // get the date from the last report
-                const date = (lastReport.id).toString()
-
-                console.log(date);
-
-            // })
-
-
-            // await Promise.all(promises)
-            
+            await Promise.all(promises)
         }
 
         return res.status(200).json({
