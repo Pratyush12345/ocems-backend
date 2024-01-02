@@ -43,6 +43,7 @@ const header = [
     "dateAdded"
 ]
 
+// Purpose is not a required field- fix this
 const requiredFields = [
     "TagNo",
     "Instrument",
@@ -68,13 +69,16 @@ const stringFields = [
     "isActive"
 ]
 
-const numberFields = [
+const stringOrNumberFields = [
     "InstrumentRangeFrom",
     "InstrumentRangeTo",
-    "Qty",
     "OCPress_Kg_cm2",
     "OCTemp_degC",
     "OCFlow_m3_hr"
+]
+
+const numberFields = [
+    "Qty",
 ]
 
 module.exports.bulkAddInstruments = (req,res) => {
@@ -118,6 +122,19 @@ module.exports.bulkAddInstruments = (req,res) => {
             const headerObtained = firstRow[i].trim()
             const headerRequired = header[i-1]
 
+            if(headerRequired === "PAndIDNo"){
+                if(headerObtained === "P&IDNo"){
+                    continue
+                } else {
+                    return res.status(400).json({
+                        message: "The header row format is wrong",
+                        metadata: {
+                            headerObtained: headerObtained,
+                            headerRequired: "P&IDNo"
+                        }
+                    })
+                }
+            }
             if(headerObtained !== headerRequired){
                 return res.status(400).json({
                     message: "The header row format is wrong",
@@ -135,46 +152,59 @@ module.exports.bulkAddInstruments = (req,res) => {
         // json object containing instrument codes as "instrumentCode": "instrumentName"
         const instrumentCodesData = instrumentCodes.val() 
         
+        let jsonArray = []
         // traverse through the rows of the sheet
-        worksheet.eachRow(async (row, rowNumber) => {
-            if(rowNumber === 1) return // skip the first row (header row)
 
-            // rowData contains the entire data of an instrument
+        const promises = [];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber === 1) return; // skip the first row (header row)
+
             const rowData = row.values;
-
-            // data to store in firestore instrumentName collection
-            let data = {}
-            let instrumentName
+            let data = {};
+            let instrumentName;
 
             for (let j = 1; j < firstRow.length; j++) {
-                // key contains the key against which the data is to be stored
-                const key = firstRow[j].trim()
-
-                // get the cell value of the current row
+                const key = firstRow[j].trim();
                 let cellValue = rowData[j];
-                
-                // get the instrument name from the instrument code using realtime database
-                if(j === 1){
-                    let instrumentCode = extractInstrumentCode(cellValue).trim()
-                    instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '')
+
+                if (j === 1) {
+                    let instrumentCode = extractInstrumentCode(cellValue).trim();
+                    instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '');
                 }
 
-                if(cellValue){
-                    data[key] = cellValue
+                if (cellValue !== undefined && cellValue !== null) {
+                    data[key] = cellValue;
                 }
             }
-            // add the dateAdded field to the data object
+
             data["dateAdded"] = new Date().toLocaleString('en-US', options);
 
-            // check if the instrument with the given tag number already exists in the instrumentName collection
-            const instrument = await firestore.collection('plants').doc(plantID).collection(instrumentName).where("TagNo", '==', data["TagNo"]).get()
+            const instrumentPromise = firestore.collection('plants').doc(plantID).collection(instrumentName).where("TagNo", '==', data["TagNo"]).get()
+                .then(async instrument => {
+                    if (instrument.empty) {
+                        await firestore.collection('plants').doc(plantID).collection(instrumentName).add(data)
+                        jsonArray.push(data)
+                    }
+                    return Promise.resolve();
+                });
 
-            // if no instrument with the given tag number exists, add the instrument to the instrumentName collection
-            if(instrument.empty){
-                await firestore.collection('plants').doc(plantID).collection(instrumentName).add(data)
+            promises.push(instrumentPromise);
+        });
+
+        await Promise.all(promises);
+
+        const jsonToStore = {
+            data: jsonArray
+        }
+
+        // store the instruments data locally
+        fs.writeFile(`./data/instruments/${plantID}.json`, JSON.stringify(jsonToStore), (err) => {
+            if(err){
+                console.log(err);
             }
         })
-
+        
         return res.status(200).json({
             message: 'Instrument(s) added successfully'
         })
@@ -259,6 +289,15 @@ module.exports.addInstrument = (req,res) => {
             validationError = true;
             res.status(400).json({
                 message: `${key} must be a string`
+            });
+            return;
+        }
+
+        // if the key is in stringOrNumberFields array and the value is not a string or a number, set validationError to true
+        if (stringOrNumberFields.includes(key) && typeof value !== 'string' && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string or a number`
             });
             return;
         }
@@ -358,6 +397,115 @@ module.exports.addInstrument = (req,res) => {
     })
 }
 
+module.exports.addInstrumentsModbusAddress = (req,res) => {
+    const adminuid = req.userData.uid
+    const data = req.body.data
+
+    // check if data is an array
+    if(!Array.isArray(data)){
+        return res.status(400).json({
+            message: "Data should be an array"
+        })
+    }
+
+    // check if the data array matches the structure
+    for (let i = 0; i < data.length; i++) {
+        const instrument = data[i];
+        if(!instrument.hasOwnProperty("TagNo") || !instrument.hasOwnProperty("address")){
+            return res.status(400).json({
+                message: "TagNo and modbusAddress are required"
+            })
+        }
+
+        // if any other field is present in the instrument object, return an error
+        if(Object.keys(instrument).length !== 2){
+            return res.status(400).json({
+                message: "Only TagNo and address are allowed"
+            })
+        }
+
+        if(typeof instrument.TagNo !== "string"){
+            return res.status(400).json({
+                message: "TagNo should be a string"
+            })
+        }
+
+        if(typeof instrument.address !== "number"){
+            return res.status(400).json({
+                message: "address should be a number"
+            })
+        }
+
+        if(instrument.TagNo.trim().length === 0){
+            return res.status(400).json({
+                message: "TagNo can't be empty"
+
+            })
+        }
+    }
+
+    // check if the address is unique
+    const addresses = data.map((instrument) => instrument.address)
+    const uniqueAddresses = [...new Set(addresses)]
+    
+    if(addresses.length !== uniqueAddresses.length){
+        return res.status(400).json({
+            message: "The addresses should be unique"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        // get the local instruments json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        // from the data array obtained from the request, check if the TagNo exists in the local instruments json file
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            const TagNo = instrument.TagNo
+
+            let found = false
+            for (let j = 0; j < data.length; j++) {
+                const instrToAdd = data[j];
+                if(instrToAdd.TagNo === TagNo){
+                    found = true
+                    break
+                }
+            }
+
+            if(!found){
+                return res.status(400).json({
+                    message: `No instrument found with the TagNo ${TagNo}`
+                })
+            }
+        }
+
+        return res.status(200).json({
+            message: 'Modbus address added successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
 module.exports.updateInstrument = (req,res) => {
     const adminuid = req.userData.uid
     const TagNo = req.body.TagNo
@@ -415,6 +563,15 @@ module.exports.updateInstrument = (req,res) => {
             validationError = true;
             res.status(400).json({
                 message: `${key} must be a string`
+            });
+            return;
+        }
+
+        // if the key is in stringOrNumberFields array and the value is not a string or a number, set validationError to true
+        if (stringOrNumberFields.includes(key) && typeof value !== 'string' && typeof value !== 'number') {
+            validationError = true;
+            res.status(400).json({
+                message: `${key} must be a string or a number`
             });
             return;
         }
@@ -483,6 +640,19 @@ module.exports.updateInstrument = (req,res) => {
         // update the instrument
         await firestore.collection('plants').doc(plantID).collection(instrumentName).doc(instrument.docs[0].id).update(updates)
         
+        // update the instrument in the local json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            if(instrument["TagNo"] === TagNo){
+                Object.keys(updates).forEach(key => {
+                    instrument[key] = updates[key]
+                })
+                break
+            }
+        }
+
         return res.status(200).json({
             message: 'Instrument updated successfully'
         })
@@ -557,6 +727,17 @@ module.exports.deleteInstrument = (req,res) => {
         // delete the instrument
         await firestore.collection('plants').doc(plantID).collection(instrumentName).doc(instrument.docs[0].id).delete()
         
+        // delete the instrument from the local json file
+        const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        for (let i = 0; i < plantInstruments.length; i++) {
+            const instrument = plantInstruments[i];
+            if(instrument["TagNo"] === TagNo){
+                plantInstruments.splice(i,1)
+                break
+            }
+        }
+
         return res.status(200).json({
             message: 'Instrument deleted successfully'
         })
@@ -568,3 +749,461 @@ module.exports.deleteInstrument = (req,res) => {
         })
     })
 }
+
+module.exports.addFilters = (req,res) => {
+    const adminuid = req.userData.uid
+    const filters = req.body.filters
+
+    // check if filters is an array
+    if(!Array.isArray(filters)){
+        return res.status(400).json({
+            message: "Filters should be an array"
+        })
+    }
+
+    // check if the filter array matches the structure
+    for (let i = 0; i < filters.length; i++) {
+        const filter = filters[i];
+        if(!filter.hasOwnProperty("filterName") || !filter.hasOwnProperty("filterItem")){
+            return res.status(400).json({
+                message: "filterName and filterItem are required"
+            })
+        }
+
+        if(typeof filter.filterName !== "string"){
+            return res.status(400).json({
+                message: "filterName should be a string"
+            })
+        }
+
+        if(!Array.isArray(filter.filterItem)){
+            return res.status(400).json({
+                message: "filterItem should be an array"
+            })
+        }
+
+        if(!filter.filterItem.every((value) => typeof value === 'string' || typeof value === 'number')){
+            return res.status(400).json({
+                message: "filterItem should be an array of strings or numbers"
+            })
+        }
+
+        if(filter.filterItem.length === 0){
+            return res.status(400).json({
+                message: "filterItem can't be empty"
+
+            })
+        }
+
+        if(filter.filterName.trim().length === 0){
+            return res.status(400).json({
+                message: "filterName can't be empty"
+
+            })
+        }
+
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+
+        filters.map(async (filterObtained) => {
+            const filterObtainedName = filterObtained.filterName
+            const filterObtainedItems = filterObtained.filterItem
+
+            const filter = await firestore.collection(`plants/${plantID}/processFilterCategory`).where("filterName", "==", filterObtainedName).get()
+
+            // if filter exists, check the filterItems array and add those fields from the filterItems array which are not present in the filterItem array of the filter
+            if(!filter.empty){
+                const filterItem = filter.docs[0].data().filterItem
+
+                filterObtainedItems.forEach(item => {
+                    if(!filterItem.includes(item)){
+                        filterItem.push(item)
+                    }
+                })
+
+                await firestore.collection(`plants/${plantID}/processFilterCategory`).doc(filter.docs[0].id).update({
+                    filterItem: filterItem
+                })
+            } else {
+                // if filter does not exist, create a new filter
+                await firestore.collection(`plants/${plantID}/processFilterCategory`).add({
+                    filterName: filterObtainedName,
+                    filterItem: filterObtainedItems
+                })
+            }
+        })
+
+        return res.status(200).json({
+            message: 'Filter added successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+}
+
+module.exports.getFilters = async (req,res) => {
+    const adminuid = req.userData.uid
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+
+        const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
+
+        let data = []
+        filters.forEach(filter => {
+            data.push(filter.data())
+        })
+
+        return res.status(200).json({
+            data: data
+        })
+    })
+}
+
+/**
+ * Search Queries
+ * 1. Instrument
+ * 2. Location
+ * 3. Fluid
+ * 4. TypeOfInstorWorkingPrinciple
+ * 5. I/O
+ * 6. Category
+ */
+module.exports.getInstrCategories = (req,res) => {
+    const adminuid = req.userData.uid
+    const categoryName = req.query.category
+    const instrument = req.query.instrument
+    const location = req.query.location
+    const fluid = req.query.fluid
+    const typeOfInstorWorkingPrinciple = req.query.tiowp
+    const io = req.query.io
+
+    // if category is present, there can't be any other queries present
+    if(categoryName !== undefined && (instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined)){
+        return res.status(400).json({
+            message: "You can only query for category, no other queries are allowed"
+        })
+    }
+
+    // category query array can only contain one element
+    if(categoryName !== undefined && Array.isArray(categoryName) && categoryName.length > 1){
+        return res.status(400).json({
+            message: "You can only query for one category"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin not found"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+        
+        let data = []
+        if(categoryName){
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
+
+            if(categoriesWithInstruments.empty){
+                return res.status(400).json({
+                    message: "No instruments found for the given category"
+                })
+            }
+
+            categoriesWithInstruments.forEach(category => {
+                category.data().instrArray.forEach(instrument => {
+                    data.push(instrument)
+                })
+            })
+
+            let instrumentArray = []
+            const promises = data.map(async (instrumentCode) => {
+                // using the instrument code, get the instrument name from the realtime database
+                let instrumentName = (await db.ref(`InstrumentCodes/${plantID}/${instrumentCode}`).once('value')).val()
+
+                // replace all the whitespaces in the instrument name
+                instrumentName = instrumentName.replace(/\s/g, '')
+
+                // fetch all the instruments from the firestore collection
+                const instruments = await firestore.collection(`plants/${plantID}/${instrumentName}`).get()
+
+                instruments.forEach(instrument => {
+                    instrumentArray.push(instrument.data())
+                })
+            })
+
+            await Promise.all(promises)
+
+            data = instrumentArray
+
+        } else if(instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined){
+            data = await searchQueries(req.query, plantID)
+        } else {
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).get()
+
+            categoriesWithInstruments.forEach(category => {
+                data.push(category.data().categoryName)
+            })
+        }
+
+        return res.status(200).json({
+            count: data.length,
+            data: data
+        })
+    })
+}
+
+const searchQueries = async (queryObject, plantID) => {
+    // if the query object consists of keys which are strings, convert them to arrays
+    let Query = {}
+    Object.keys(queryObject).forEach(key => {
+        let value = queryObject[key]
+
+        if(typeof value === "string"){
+            Query[key] = [value]
+        } else {
+            Query[key] = value
+        }
+    })
+
+    let data = []
+
+    // get all the collections in the plant
+    const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
+
+    if(Query['instrument'] || Query['tiowp'] || Query['fluid']) {
+        const promises = collections.map(async (collection) => {
+            let query = collection
+            const Instrument = Query["instrument"]
+            const TypeOfInstorWorkingPrinciple = Query["tiowp"]
+            const Fluid = Query["fluid"]
+
+            if(Instrument){
+                query = query.where("Instrument", 'in', Instrument)
+            }
+            if(TypeOfInstorWorkingPrinciple){
+                query = query.where("TypeOfInstorWorkingPrinciple", 'in', TypeOfInstorWorkingPrinciple)
+            }
+            if(Fluid){
+                query = query.where("Fluid", 'in', Fluid)
+            }
+
+            const result = await query.get()
+            result.forEach(doc => {
+                data.push(doc.data())
+            })
+        })
+        
+        await Promise.all(promises)
+    }
+    
+    const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+    let lioData = []
+    if(Query["location"] || Query["io"]){
+
+        if(Query["location"] && Query["io"]){
+            // while writing code, keep in mind that Query["location"] and Query["io"] are arrays
+            const locationArray = Query["location"]
+            const ioArray = Query["io"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+
+                for (let j = 0; j < locationArray.length; j++) {
+                    
+                    if(instrument["Location"].toLowerCase().includes(locationArray[j].toLowerCase())){
+                        for (let k = 0; k < ioArray.length; k++) {
+                            if(ioArray[k] === "outlet"){
+                                let flag = false
+                                if(instrument["Location"].toLowerCase().includes("outlet"))
+                                    flag = true
+                                if(!flag && !instrument["Location"].toLowerCase().includes("discharge"))
+                                    continue
+                            } else if (!instrument["Location"].toLowerCase().includes(ioArray[k].toLowerCase())){
+                                continue
+                            }
+
+                            lioData.push(instrument)
+                        }
+                    }
+                }
+            }    
+        } else if(Query["location"]) {
+            const locationArray = Query["location"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+                
+                for (let j = 0; j < locationArray.length; j++) {
+                    if(instrument["Location"].toLowerCase().includes(locationArray[j].toLowerCase())){
+                        lioData.push(instrument)
+                    }
+                }
+            }
+        } else if(Query["io"]) {
+            const ioArray = Query["io"]
+
+            for (let i = 0; i < plantInstruments.length; i++) {
+                const instrument = plantInstruments[i];
+                
+                for (let j = 0; j < ioArray.length; j++) {
+
+                    if(ioArray[j] === "outlet"){
+                        let flag = false
+                        if(instrument["Location"].toLowerCase().includes("outlet"))
+                            flag = true
+                        if(!flag && !instrument["Location"].toLowerCase().includes("discharge"))
+                            continue
+                    } else if (!instrument["Location"].toLowerCase().includes(ioArray[j].toLowerCase()))
+                        continue
+
+                    lioData.push(instrument)
+                }
+            }
+        }  
+    }
+
+    if(data.length !== 0 && lioData.length !== 0){
+        // if an element of data is not present in lioData, remove it from data
+        data = data.filter((instrument) => {
+            for (let i = 0; i < lioData.length; i++) {
+                const lioInstrument = lioData[i];
+                if(instrument["TagNo"] === lioInstrument["TagNo"]){
+                    return true
+                }
+            }
+            return false
+        })
+    } else if(data.length !== 0){
+        if(Query["location"] || Query["io"]){
+            data = []
+        }
+    } else if(lioData.length !== 0){
+        data = lioData
+    }
+    return data
+}
+
+/**
+
+    const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
+
+    const promises = collections.map(async (collection) => {
+        const querySnapshot = await collection.get();
+
+        querySnapshot.docs.forEach(doc => {
+            const DocData = doc.data()
+            if (DocData["TagNo"] && DocData["Location"] && DocData["Instrument"] && DocData["P&IDNo"] && DocData["isActive"]) {
+                Query.forEach(query => {
+                    const instrument = query["instrument"] ? query["instrument"].toLowerCase() : undefined
+                    const location = query["location"] ? query["location"].toLowerCase() : undefined
+                    const fluid = query["fluid"] ? query["fluid"].toLowerCase() : undefined
+                    const typeOfInstorWorkingPrinciple = query["tiowp"] ? query["tiowp"].toLowerCase() : undefined
+                    const io = query["io"] ? query["io"].toLowerCase() : undefined
+
+                    if(instrument && instrument !== DocData["Instrument"].toLowerCase()){
+                        return 
+                    } 
+                    if(fluid && DocData["Fluid"] && !DocData["Fluid"].toLowerCase().includes(fluid)){
+                        return 
+                    } else if(fluid && !DocData["Fluid"])
+                        return
+                    if(location && DocData["Location"] && !DocData["Location"].toLowerCase().includes(location)){
+                        return
+                    } 
+                    if(typeOfInstorWorkingPrinciple && DocData["TypeOfInstorWorkingPrinciple"]){
+                        if(typeof DocData["TypeOfInstorWorkingPrinciple"] === "string" && !DocData["TypeOfInstorWorkingPrinciple"].toLowerCase().includes(typeOfInstorWorkingPrinciple)){
+                            return
+                        } 
+                        if (typeof DocData["TypeOfInstorWorkingPrinciple"] === "number" && DocData["TypeOfInstorWorkingPrinciple"] !== typeOfInstorWorkingPrinciple){
+                            return
+                        }
+                    } else if(typeOfInstorWorkingPrinciple && !DocData["TypeOfInstorWorkingPrinciple"])
+                        return
+                    if(io && DocData["Location"]){
+                        if(io === "outlet"){
+                            let flag = false
+                            if(DocData["Location"].toLowerCase().includes("outlet"))
+                                flag = true
+                            if(!flag && !DocData["Location"].toLowerCase().includes("discharge"))
+                                return
+                        } else if (DocData["Location"] && !DocData["Location"].toLowerCase().includes(io))
+                            return
+                    }  
+
+                    data.push(DocData)
+                })
+            }
+        });
+    });
+
+    await Promise.all(promises)
+
+
+
+ */

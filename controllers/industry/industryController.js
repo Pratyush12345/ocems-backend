@@ -98,6 +98,20 @@ module.exports.signUp = async (req,res) => {
             email: email
         })
 
+        // send notification to admin
+        const admin = await firestore.collection('users').doc(plantCheck.get('selectedAdmin')).get()
+        const fcm_token = admin.get('fcm_token')
+
+        const message = {
+            notification: {
+                title: "New Industry Request",
+                body: `A new industry has requested to join your plant.`
+            },
+            token: fcm_token
+        }
+
+        await firebase.messaging().send(message)
+        
         // send response for request sent for review
         return res.status(200).json({
             message: "Request sent successfully for review to Plant Admin",
@@ -460,19 +474,3 @@ module.exports.deleteIndustry = (req,res) => {
         })
     })
 }
-
-/**
-    DUMP
-        // const Plants = await firestore.collection('plants').count().get()
-        // const plantsCount = Plants.data().count
-
-        // for (let i = 0; i < plantsCount; i++) {
-        //     const mailCheck = await firestore.collection(`P${i}_industry_users`).where('email', '==', email).get()
-
-        //     if(!mailCheck.empty){
-        //         return res.status(409).json({
-        //             message: "Email already exists"
-        //         })
-        //     }
-        // }
- */

@@ -78,86 +78,119 @@ module.exports.updateUser = (req,res) => {
     const useruid = req.params.useruid
     const updatedData = req.body.updateData
 
-    const prohibitedFields = ["accessLevel", "mailID", "roleName", "isSuspended", "plantID", "dateAdded"]
-    const updateableFields = ["name", "postName", "phoneNo", "departmentAccess"]
+    if(useruid==="fcm_token"){
+        const fcmToken = req.body.fcm_token
 
-    // check if the updatedData object contains any prohibited fields
-    for(let i=0; i<prohibitedFields.length; i++){
-        if(updatedData.hasOwnProperty(prohibitedFields[i])){
+        if(fcmToken===undefined){
             return res.status(400).json({
-                message: `${prohibitedFields[i]} can't be updated`
+                message: "Please provide a FCM Token"
             })
         }
-    }
 
-    // check if the updatedData object contains any updateable fields and if they are valid strings and non empty
-    for(let i=0; i<updateableFields.length; i++){
-        if(updatedData.hasOwnProperty(updateableFields[i])){
-            if(typeof updatedData[updateableFields[i]] !== "string"){
-                return res.status(400).json({
-                    message: `${updateableFields[i]} should be a string`
-                })
-            } else if(updatedData[updateableFields[i]].trim().length === 0){
-                return res.status(400).json({
-                    message: `${updateableFields[i]} can't be empty`
-                })
-            }
-        }
-    }
-
-    // check if the updatedData contains any fields which are not in updateableFields and in prohibitedFields
-    for(let key in updatedData){
-        if(!updateableFields.includes(key) && !prohibitedFields.includes(key)){
+        if(fcmToken.length === 0){
             return res.status(400).json({
-                message: `${key} is not a valid field to update`
+                message: "FCM Token can't be empty"
             })
         }
-    }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async user => {
-        const roleName = user.get('roleName')
-
-        if(user.exists){
-
-            if(roleName !== "Admin" && roleName !== "superAdmin"){
-                return res.status(401).json({
-                    message: "Unauthorized access"
-                })
-            }
-
-            if(roleName === "Admin"){
-                if(user.get('plantID') === null || user.get('plantID') === undefined){
-                    return res.status(400).json({
-                        message: "Please assign a plant to the admin before deleting users"
-                    })
-                }
-                
-                const plant = await firestore.collection('plants').doc(user.get('plantID')).get()
-                if(plant.get('selectedAdmin')!==adminuid){
-                    return res.status(401).json({
-                        message: "Admin is not associated with this plant"
-                    })
-                }
-            } 
-
-            await firestore.collection('users').doc(useruid).update(updatedData)
-
-            return res.status(200).json({
-                message: 'User updated successfully',
-            });
-        } else {
-            return res.status(404).json({
-                message: "Admin Doesn't exist"
-            })
-        }
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
+        firestore.collection('users').doc(adminuid).update({
+            fcmToken: fcmToken
         })
-    })
+        .then(result => {
+            return res.status(200).json({
+                message: "FCM Token updated successfully"
+            })
+        })
+        .catch(err => {
+            console.log(err);
+            return res.status(500).json({
+                error: err
+            })
+        })
+    } else {
+        const prohibitedFields = ["accessLevel", "mailID", "roleName", "isSuspended", "plantID", "dateAdded"]
+        const updateableFields = ["name", "postName", "phoneNo", "departmentAccess"]
+    
+        // check if the updatedData object contains any prohibited fields
+        for(let i=0; i<prohibitedFields.length; i++){
+            if(updatedData.hasOwnProperty(prohibitedFields[i])){
+                return res.status(400).json({
+                    message: `${prohibitedFields[i]} can't be updated`
+                })
+            }
+        }
+    
+        // check if the updatedData object contains any updateable fields and if they are valid strings and non empty
+        for(let i=0; i<updateableFields.length; i++){
+            if(updatedData.hasOwnProperty(updateableFields[i])){
+                if(typeof updatedData[updateableFields[i]] !== "string"){
+                    return res.status(400).json({
+                        message: `${updateableFields[i]} should be a string`
+                    })
+                } else if(updatedData[updateableFields[i]].trim().length === 0){
+                    return res.status(400).json({
+                        message: `${updateableFields[i]} can't be empty`
+                    })
+                }
+            }
+        }
+    
+        // check if the updatedData contains any fields which are not in updateableFields and in prohibitedFields
+        for(let key in updatedData){
+            if(!updateableFields.includes(key) && !prohibitedFields.includes(key)){
+                return res.status(400).json({
+                    message: `${key} is not a valid field to update`
+                })
+            }
+        }
+    
+        firestore.collection('users').doc(adminuid).get()
+        .then(async user => {
+            const roleName = user.get('roleName')
+    
+            if(user.exists){
+    
+                if(roleName !== "Admin" && roleName !== "superAdmin"){
+                    return res.status(401).json({
+                        message: "Unauthorized access"
+                    })
+                }
+    
+                if(roleName === "Admin"){
+                    if(user.get('plantID') === null || user.get('plantID') === undefined){
+                        return res.status(400).json({
+                            message: "Please assign a plant to the admin before deleting users"
+                        })
+                    }
+                    
+                    const plant = await firestore.collection('plants').doc(user.get('plantID')).get()
+                    if(plant.get('selectedAdmin')!==adminuid){
+                        return res.status(401).json({
+                            message: "Admin is not associated with this plant"
+                        })
+                    }
+                } 
+    
+                await firestore.collection('users').doc(useruid).update(updatedData)
+    
+                return res.status(200).json({
+                    message: 'User updated successfully',
+                });
+            } else {
+                return res.status(404).json({
+                    message: "Admin Doesn't exist"
+                })
+            }
+        })
+        .catch(err => {
+            console.log(err);
+            return res.status(500).json({
+                error: err
+            })
+        })
+
+    }
+
 }
 
 module.exports.deleteUser = (req,res) => {

@@ -18,8 +18,14 @@ const billRecieptStorage = multer({
 
 router.use('/master', require('./billMaster'))
 
+router.get('/:industryid', checkAuth, billController.getBills)
+router.get('/requests', checkAuth, billController.getBillApprovalRequests)
+
 router.post('/create/:industryid', checkAuth, billController.createBill)
 router.post('/upload/reciept', checkAuth, checkIndustry, billRecieptStorage, billController.uploadPaymentReciept)
+
+router.patch('/:decision/:requestid', checkAuth, billController.processBill)
+
 router.delete('/delete/:industryid/:billid', checkAuth, billController.deleteCopy)
 
 module.exports = router
