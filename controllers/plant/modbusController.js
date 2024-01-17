@@ -140,36 +140,79 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
 module.exports.addReport = async (plantID, address, timestamp, value) => {
     try {
         const plant = await firestore.collection('plants').doc(plantID).get()
+        const adminid = plant.data().selectedAdmin
 
-        if(plant.exists){
-            const addressDoc = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
+        const admin = await firestore.collection('users').doc(adminid).get()
 
-            if(addressDoc.exists){
-                let today = new Date()
+        if(admin.exists){
+            const fcm_token = admin.data().fcmToken
 
-                if(today.getMonth()<10 && today.getDate()<10)
-                    today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-0'+today.getDate()}`
-                else if(today.getMonth()<10) 
-                    today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-'+today.getDate()}`
-                else if(today.getDate()<10) 
-                    today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-0'+today.getDate()}`
-                else 
-                    today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate()}`
-                
+            if(plant.exists){
+                const addressDoc = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
+                const TagNo = addressDoc.data().TagNo
+    
+                if(addressDoc.exists){
+                    let today = new Date()
+    
+                    if(today.getMonth()<10 && today.getDate()<10)
+                        today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-0'+today.getDate()}`
+                    else if(today.getMonth()<10) 
+                        today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-'+today.getDate()}`
+                    else if(today.getDate()<10) 
+                        today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-0'+today.getDate()}`
+                    else 
+                        today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate()}`
+                    
+    
+                    await firestore.collection(`plants/${plantID}/InstrumentData/${address}/reports`).doc(today).set({
+                        [timestamp]: value
+                    })
+    
+                    addressDoc.ref.update({
+                        latestData: {
+                            date: today,
+                            time: timestamp,
+                            value: value
+                        }
+                    })
+    
+                    const localPlantInstruments = require(`../../data/instruments/${plantID}.json`).data
+                    
+                    for (let i = 0; i < localPlantInstruments.length; i++) {
+                        const instrument = localPlantInstruments[i];
+                        if(instrument.TagNo === TagNo){
+                            const lowerLimit = instrument.lowerLimit
+                            const upperLimit = instrument.upperLimit
+    
+                            if(value < lowerLimit || value > upperLimit){
+                                // send notification to plant admin
+                                const fcm_token = industry.get('fcm_token')
 
-                await firestore.collection(`plants/${plantID}/InstrumentData/${address}/reports`).doc(today).set({
-                    [timestamp]: value
-                })
+                                const message = {
+                                    data: {
+                                        title: "Instrument flow alert!!!",
+                                        body: `Instrument has crossed the flow limit`,
+                                        instrument: TagNo,
+                                        value: value,
+                                        timestamp: timestamp,
+                                        lowerLimit: lowerLimit,
+                                        upperLimit: upperLimit,
+                                        address: address
+                                    },
+                                    token: fcm_token
+                                }
 
-                addressDoc.ref.update({
-                    latestData: {
-                        date: today,
-                        time: timestamp,
-                        value: value
+                                await getMessaging().send(message)
+                            }
+    
+                            break
+                        }
                     }
-                })
+    
+                }
             }
         }
+
     } catch (error) {
         console.log(error);
     }

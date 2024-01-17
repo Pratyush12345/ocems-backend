@@ -5,6 +5,7 @@ const industryController = require('../../controllers/industry/industryControlle
 
 router.use('/bill', require('./bill'))
 router.use('/notice', require('./notice'))
+router.use('/flow', require('./flow'))
 
 router.post('/signup', industryController.signUp)
 router.get('/', checkAuth, industryController.getRequests)
