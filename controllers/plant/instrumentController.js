@@ -395,6 +395,12 @@ module.exports.addInstrument = (req,res) => {
             message: 'Instrument added successfully'
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.addInstrumentsModbusAddress = (req,res) => {
@@ -909,6 +915,12 @@ module.exports.getFilters = async (req,res) => {
 
         return res.status(200).json({
             data: data
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }

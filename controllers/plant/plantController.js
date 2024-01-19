@@ -290,6 +290,12 @@ module.exports.getDepartmentAccess = (req,res) => {
             departmentAccess: departmentAccess
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.updateDepartmentAccess = (req,res) => {
@@ -351,6 +357,12 @@ module.exports.updateDepartmentAccess = (req,res) => {
             message: 'Department access updated successfully'
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.deleteDepartmentAccess = (req,res) => {
@@ -410,6 +422,12 @@ module.exports.deleteDepartmentAccess = (req,res) => {
 
         return res.status(200).json({
             message: 'Department access updated successfully'
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }

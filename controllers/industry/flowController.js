@@ -250,7 +250,12 @@ module.exports.getLatestFlowData = (req,res) => {
             data: data
         })
     })
-
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.getAllFlowData = (req,res) => {
@@ -294,6 +299,12 @@ module.exports.getAllFlowData = (req,res) => {
 
         return res.status(200).json({
             data: data
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }

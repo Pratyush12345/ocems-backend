@@ -317,6 +317,12 @@ module.exports.getAllAddress = (req,res) => {
             data: dataToReturn
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.getReport = (req,res) => {
@@ -435,6 +441,12 @@ module.exports.getReport = (req,res) => {
 
         return res.status(200).json({
             data: dataToReturn
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }
@@ -604,6 +616,12 @@ module.exports.deleteAddress = (req,res) => {
 
         return res.status(200).json({
             message: "Address deleted successfully"
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }
