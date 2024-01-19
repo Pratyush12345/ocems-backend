@@ -40,6 +40,29 @@ const booleanFields = [
     'isActive'
 ]
 
+module.exports.getPlant = (req,res) => {
+    const plantid = req.query.plantid
+
+    if(!plantid) {
+        return res.status(400).json({
+            message: 'Plant ID is required'
+        })
+    }
+
+    firestore.collection('plants').doc(plantid).get()
+    .then(plant => {
+        if(!plant.exists) {
+            return res.status(400).json({
+                message: 'Plant does not exist'
+            })
+        }
+
+        return res.status(200).json({
+            plant: plant.data()
+        })
+    })
+}
+
 module.exports.createPlant = (req,res) => {
     const cin = req.body.cin
     const city = req.body.city

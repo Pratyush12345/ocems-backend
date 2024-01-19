@@ -270,7 +270,6 @@ module.exports.createBill = async (req, res) => {
          *      5.3 generate the new full quotation string starting the quotation no from 1000
          *      5.4 update the new quotation string and the starting quotation string in the plants collection
          * 
-         * consideration-> if quotation count increases to 5 digits, then calculations would go wrong
          */
         const currentYear = date.getFullYear()
         const currentQuotationNoYear = parseInt(currentFullQuotationNo.substring(currentFullQuotationNo.indexOf('/', currentFullQuotationNo.indexOf('/') + 1) + 1, currentFullQuotationNo.indexOf('/', currentFullQuotationNo.indexOf('/') + 1) + 5));

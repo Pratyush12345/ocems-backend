@@ -870,6 +870,7 @@ module.exports.addFilters = (req,res) => {
 
 module.exports.getFilters = async (req,res) => {
     const adminuid = req.userData.uid
+    const category = req.query.category
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -894,13 +895,17 @@ module.exports.getFilters = async (req,res) => {
                 message: "Plant not found"
             })
         }
-
-        const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
-
         let data = []
-        filters.forEach(filter => {
-            data.push(filter.data())
-        })
+
+        if(category) {
+
+        } else {
+            const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
+
+            filters.forEach(filter => {
+                data.push(filter.data())
+            })
+        }
 
         return res.status(200).json({
             data: data
@@ -1148,6 +1153,18 @@ const searchQueries = async (queryObject, plantID) => {
     }
     return data
 }
+
+module.exports.getInstruments = (req,res) => {
+    
+}
+
+/**
+ * change in the instrument filtering process
+ *      1. get the category
+ *      2. get the instruments from the category
+ *      3. filter the instruments based on the query
+ *      
+ */
 
 /**
 

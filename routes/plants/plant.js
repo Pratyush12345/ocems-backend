@@ -13,6 +13,7 @@ router.patch('/department/update', checkAuth, plantController.updateDepartmentAc
 router.delete('/department/delete', checkAuth, plantController.deleteDepartmentAccess)
 
 // Plant routes
+router.get('/', plantController.getPlant)
 router.post('/create', plantController.createPlant)
 
 // Payment routes
