@@ -874,9 +874,47 @@ module.exports.addFilters = (req,res) => {
     })
 }
 
+/*
+    Object format
+    {
+        "filterName": "Fluid",
+        "filterItem": ["Water", "Steam"]
+    }
+*/
+const filterObjectMaker = (instrument, filterName, filterItem) => {
+    const filterItemArray = []
+
+    filterItem.forEach(item => {       
+        if(filterName === "I/O"){
+            const location = instrument["Location"].toLowerCase()
+            if(item === "Outlet") {
+                if(location.includes("outlet") || location.includes("discharge")) {
+                    filterItemArray.push(item)
+                }
+            } else if(item === "Inlet" && location.includes("inlet")) {
+                filterItemArray.push(item)
+            }
+        } else {
+            if(typeof item === "number"){
+                item = item.toString()
+            }
+
+            if(instrument[filterName]?.toString().toLowerCase().includes(item.toLowerCase()) && !filterItemArray.includes(item)){
+                filterItemArray.push(item)
+            } 
+        }
+    })
+
+    return {
+        filterName: filterName,
+        filterItem: filterItemArray
+    }
+}
+
 module.exports.getFilters = async (req,res) => {
     const adminuid = req.userData.uid
-    const category = req.query.category
+    // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const categoryName = req.query.category
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -902,12 +940,66 @@ module.exports.getFilters = async (req,res) => {
             })
         }
         let data = []
+        const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
 
-        if(category) {
+        if(categoryName) {
+            // Get all the instruments of the category
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
 
+            if(categoriesWithInstruments.empty){
+                return res.status(400).json({
+                    message: "No instruments found for the given category"
+                })
+            }
+
+            categoriesWithInstruments.forEach(category => {
+                category.data().instrArray.forEach(instrument => {
+                    data.push(instrument)
+                })
+            })
+
+            let instrumentArray = []
+            const promises = data.map(async (instrumentCode) => {
+                // using the instrument code, get the instrument name from the realtime database
+                let instrumentName = (await db.ref(`InstrumentCodes/${plantID}/${instrumentCode}`).once('value')).val()
+
+                // replace all the whitespaces in the instrument name
+                instrumentName = instrumentName.replace(/\s/g, '')
+
+                // fetch all the instruments from the firestore collection
+                const instruments = await firestore.collection(`plants/${plantID}/${instrumentName}`).get()
+
+                instruments.forEach(instrument => {
+                    instrumentArray.push(instrument.data())
+                })
+            })
+
+            await Promise.all(promises)
+            data = []
+            // iterate through all the filters and check if the filter is present in the instrument
+            for (let i = 0; i < instrumentArray.length; i++) {
+                const instrument = instrumentArray[i];
+
+                filters.forEach(filter => {
+                    const filterName = filter.data().filterName
+                    const filterItem = filter.data().filterItem
+
+                    const filterObject = filterObjectMaker(instrument, filterName, filterItem)
+                    const index = data.findIndex((element) => element.filterName === filterObject.filterName)
+
+                    if(index === -1){
+                        data.push(filterObject)
+                    } else {
+                        filterObject.filterItem.forEach(item => {
+                            if(!data[index].filterItem.includes(item)){
+                                data[index].filterItem.push(item)
+                            }
+                        })
+                    }
+                })
+            }
+            
         } else {
-            const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
-
             filters.forEach(filter => {
                 data.push(filter.data())
             })

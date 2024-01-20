@@ -21,6 +21,7 @@ router.use('/modbus', require('./modbus'))
 
 router.get('/', checkAuth, instrumentController.getInstrCategories)
 router.get('/filters', checkAuth, instrumentController.getFilters)
+// router.get('/filters', instrumentController.getFilters)
 router.post('/add/filters', checkAuth, checkAdmin, instrumentController.addFilters)
 router.post('/add/bulk', checkAuth, checkAdmin, excelSheetStorage, instrumentController.bulkAddInstruments)
 router.post('/add/modbus', checkAuth, instrumentController.addInstrumentsModbusAddress)
