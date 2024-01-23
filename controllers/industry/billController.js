@@ -270,7 +270,6 @@ module.exports.createBill = async (req, res) => {
          *      5.3 generate the new full quotation string starting the quotation no from 1000
          *      5.4 update the new quotation string and the starting quotation string in the plants collection
          * 
-         * consideration-> if quotation count increases to 5 digits, then calculations would go wrong
          */
         const currentYear = date.getFullYear()
         const currentQuotationNoYear = parseInt(currentFullQuotationNo.substring(currentFullQuotationNo.indexOf('/', currentFullQuotationNo.indexOf('/') + 1) + 1, currentFullQuotationNo.indexOf('/', currentFullQuotationNo.indexOf('/') + 1) + 5));
@@ -295,7 +294,7 @@ module.exports.createBill = async (req, res) => {
             })
         }
 
-        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').add({
+        const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').add({
             dateCreated: date.toUTCString(),
             dateUpdated: date.toUTCString(),
             requiredFields: {
@@ -315,14 +314,16 @@ module.exports.createBill = async (req, res) => {
         const fcm_token = industry.get('fcm_token')
 
         const message = {
-            notification: {
+            data: {
                 title: "New Bill",
-                body: `A new bill has been issued by the plant. Check it out now!`
+                body: `A new bill has been issued by the plant. Check it out now!`,
+                industryId: industryid,
+                billid: bill.id
             },
             token: fcm_token
         }
 
-        await getMessaging().send(message)
+        const result = await getMessaging().send(message)
         
         return res.status(200).json({
             message: "Bill created successfully"
@@ -379,25 +380,33 @@ module.exports.uploadPaymentReciept = (req,res) => {
             plantID: plantID,
             billid: billid
         })
-
-        // send notification to admin
-        // get plant 
-        const plant = await firestore.collection('plants').doc(plantID).get()
-        const adminuid = plant.get('selectedAdmin')
-
-        const admin = await firestore.collection('users').doc(adminuid).get()
-        const fcm_token = admin.get('fcm_token')
-
-        const message = {
-            notification: {
-                title: "New Bill Payment",
-                body: `A new bill payment receipt has been uploaded by the industry.`
-            },
-            token: fcm_token
-        }
-
-        await getMessaging().send(message)
     
+        // send notification to all the users who have industry-read access or industry-write access or both
+        const users = await firestore.collection('users').where('plantID', '==', plantID).get()
+
+        const requiredAccess = ['Industry-Read', 'Industry-Write']
+
+        const promise = users.docs.map(async user => {
+            const data = user.data()
+            const fcm_token = data.fcm_token
+            const departmentAccess = data.departmentAccess
+
+            // if the departmentAccess array is undefined and includes the required access array then send notification
+            if((data.accessLevel === 1) || (departmentAccess!==undefined && departmentAccess.some(r=> requiredAccess.includes(r)))){
+                const message = {
+                    notification: {
+                        title: "New Bill Payment",
+                        body: `A new bill payment receipt has been uploaded by the industry.`
+                    },
+                    token: fcm_token
+                }
+
+                await getMessaging().send(message)
+            }
+        })
+
+        await Promise.all(promise)
+
         // delete the file from local storage
         fs.unlinkSync(filePath)
         return res.status(200).json({

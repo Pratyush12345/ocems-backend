@@ -1,6 +1,5 @@
 const express    = require('express');
 const bodyParser = require('body-parser');
-const fileUpload = require('express-fileupload');
 const app = express();
 
 if (process.env.NODE_ENV !== 'production') {
@@ -25,6 +24,7 @@ app.use((req,res,next) => {
 })
 
 // require('./config/modbus')
+require('./config/cron-job')
 
 app.use('/', require('./routes/home'));
 

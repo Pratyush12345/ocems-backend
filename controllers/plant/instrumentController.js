@@ -395,6 +395,12 @@ module.exports.addInstrument = (req,res) => {
             message: 'Instrument added successfully'
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.addInstrumentsModbusAddress = (req,res) => {
@@ -868,8 +874,47 @@ module.exports.addFilters = (req,res) => {
     })
 }
 
+/*
+    Object format
+    {
+        "filterName": "Fluid",
+        "filterItem": ["Water", "Steam"]
+    }
+*/
+const filterObjectMaker = (instrument, filterName, filterItem) => {
+    const filterItemArray = []
+
+    filterItem.forEach(item => {       
+        if(filterName === "I/O"){
+            const location = instrument["Location"].toLowerCase()
+            if(item === "Outlet") {
+                if(location.includes("outlet") || location.includes("discharge")) {
+                    filterItemArray.push(item)
+                }
+            } else if(item === "Inlet" && location.includes("inlet")) {
+                filterItemArray.push(item)
+            }
+        } else {
+            if(typeof item === "number"){
+                item = item.toString()
+            }
+
+            if(instrument[filterName]?.toString().toLowerCase().includes(item.toLowerCase()) && !filterItemArray.includes(item)){
+                filterItemArray.push(item)
+            } 
+        }
+    })
+
+    return {
+        filterName: filterName,
+        filterItem: filterItemArray
+    }
+}
+
 module.exports.getFilters = async (req,res) => {
     const adminuid = req.userData.uid
+    // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const categoryName = req.query.category
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -894,16 +939,80 @@ module.exports.getFilters = async (req,res) => {
                 message: "Plant not found"
             })
         }
-
+        let data = []
         const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
 
-        let data = []
-        filters.forEach(filter => {
-            data.push(filter.data())
-        })
+        if(categoryName) {
+            // Get all the instruments of the category
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
+
+            if(categoriesWithInstruments.empty){
+                return res.status(400).json({
+                    message: "No instruments found for the given category"
+                })
+            }
+
+            categoriesWithInstruments.forEach(category => {
+                category.data().instrArray.forEach(instrument => {
+                    data.push(instrument)
+                })
+            })
+
+            let instrumentArray = []
+            const promises = data.map(async (instrumentCode) => {
+                // using the instrument code, get the instrument name from the realtime database
+                let instrumentName = (await db.ref(`InstrumentCodes/${plantID}/${instrumentCode}`).once('value')).val()
+
+                // replace all the whitespaces in the instrument name
+                instrumentName = instrumentName.replace(/\s/g, '')
+
+                // fetch all the instruments from the firestore collection
+                const instruments = await firestore.collection(`plants/${plantID}/${instrumentName}`).get()
+
+                instruments.forEach(instrument => {
+                    instrumentArray.push(instrument.data())
+                })
+            })
+
+            await Promise.all(promises)
+            data = []
+            // iterate through all the filters and check if the filter is present in the instrument
+            for (let i = 0; i < instrumentArray.length; i++) {
+                const instrument = instrumentArray[i];
+
+                filters.forEach(filter => {
+                    const filterName = filter.data().filterName
+                    const filterItem = filter.data().filterItem
+
+                    const filterObject = filterObjectMaker(instrument, filterName, filterItem)
+                    const index = data.findIndex((element) => element.filterName === filterObject.filterName)
+
+                    if(index === -1){
+                        data.push(filterObject)
+                    } else {
+                        filterObject.filterItem.forEach(item => {
+                            if(!data[index].filterItem.includes(item)){
+                                data[index].filterItem.push(item)
+                            }
+                        })
+                    }
+                })
+            }
+            
+        } else {
+            filters.forEach(filter => {
+                data.push(filter.data())
+            })
+        }
 
         return res.status(200).json({
             data: data
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
     })
 }
@@ -919,19 +1028,13 @@ module.exports.getFilters = async (req,res) => {
  */
 module.exports.getInstrCategories = (req,res) => {
     const adminuid = req.userData.uid
+    // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
     const categoryName = req.query.category
     const instrument = req.query.instrument
     const location = req.query.location
     const fluid = req.query.fluid
     const typeOfInstorWorkingPrinciple = req.query.tiowp
     const io = req.query.io
-
-    // if category is present, there can't be any other queries present
-    if(categoryName !== undefined && (instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined)){
-        return res.status(400).json({
-            message: "You can only query for category, no other queries are allowed"
-        })
-    }
 
     // category query array can only contain one element
     if(categoryName !== undefined && Array.isArray(categoryName) && categoryName.length > 1){
@@ -998,10 +1101,27 @@ module.exports.getInstrCategories = (req,res) => {
 
             await Promise.all(promises)
 
-            data = instrumentArray
+            data = instrumentArray 
+            
+            if(instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined){
+                let filteredData = await searchQueries(req.query, plantID)
+                
+                if(data.length !== 0 && filteredData.length !== 0){
+                    // if an element of data is not present in filteredData, remove it from data
+                    data = data.filter((instrument) => {
+                        for (let i = 0; i < filteredData.length; i++) {
+                            const filteredInstrument = filteredData[i];
+                            if(instrument["TagNo"] === filteredInstrument["TagNo"]){
+                                return true
+                            }
+                        }
+                        return false
+                    })
+                } else {
+                    data = []
+                } 
+            } 
 
-        } else if(instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined){
-            data = await searchQueries(req.query, plantID)
         } else {
             const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).get()
 
@@ -1067,7 +1187,6 @@ const searchQueries = async (queryObject, plantID) => {
     if(Query["location"] || Query["io"]){
 
         if(Query["location"] && Query["io"]){
-            // while writing code, keep in mind that Query["location"] and Query["io"] are arrays
             const locationArray = Query["location"]
             const ioArray = Query["io"]
 
@@ -1127,7 +1246,8 @@ const searchQueries = async (queryObject, plantID) => {
             }
         }  
     }
-
+    console.log(data.length);
+    console.log(lioData.length);
     if(data.length !== 0 && lioData.length !== 0){
         // if an element of data is not present in lioData, remove it from data
         data = data.filter((instrument) => {
@@ -1144,13 +1264,16 @@ const searchQueries = async (queryObject, plantID) => {
             data = []
         }
     } else if(lioData.length !== 0){
-        data = lioData
+        if(Query["instrument"] || Query["fluid"] || Query["tiowp"]){
+            data = []
+        } else 
+            data = lioData
     }
     return data
 }
 
 /**
-
+    // DUMP- 1
     const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
 
     const promises = collections.map(async (collection) => {
@@ -1204,6 +1327,98 @@ const searchQueries = async (queryObject, plantID) => {
 
     await Promise.all(promises)
 
-
-
  */
+
+module.exports.getInstrCategories1 = (req,res) => {
+    // const adminuid = req.userData.uid
+    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const categoryName = req.query.category
+    const instrument = req.query.instrument
+    const location = req.query.location
+    const fluid = req.query.fluid
+    const typeOfInstorWorkingPrinciple = req.query.tiowp
+    const io = req.query.io
+
+    // category query array can only contain one element
+    if(categoryName !== undefined && Array.isArray(categoryName) && categoryName.length > 1){
+        return res.status(400).json({
+            message: "You can only query for one category"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin not found"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Only an admin can access this route"
+            })
+        }
+
+        const plantID = admin.data().plantID
+
+        const plant = await firestore.collection('plants').doc(plantID).get()
+
+        if(!plant.exists){
+            return res.status(400).json({
+                message: "Plant not found"
+            })
+        }
+        
+        let data = []
+        if(categoryName){
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
+
+            if(categoriesWithInstruments.empty){
+                return res.status(400).json({
+                    message: "No instruments found for the given category"
+                })
+            }
+
+            categoriesWithInstruments.forEach(category => {
+                category.data().instrArray.forEach(instrument => {
+                    data.push(instrument)
+                })
+            })
+
+            let instrumentArray = []
+            const promises = data.map(async (instrumentCode) => {
+                // using the instrument code, get the instrument name from the realtime database
+                let instrumentName = (await db.ref(`InstrumentCodes/${plantID}/${instrumentCode}`).once('value')).val()
+
+                // replace all the whitespaces in the instrument name
+                instrumentName = instrumentName.replace(/\s/g, '')
+
+                // fetch all the instruments from the firestore collection
+                const instruments = await firestore.collection(`plants/${plantID}/${instrumentName}`).get()
+
+                instruments.forEach(instrument => {
+                    instrumentArray.push(instrument.data())
+                })
+            })
+
+            await Promise.all(promises)
+
+            data = instrumentArray 
+            
+        } else if(instrument !== undefined || location !== undefined || fluid !== undefined || typeOfInstorWorkingPrinciple !== undefined || io !== undefined){
+            data = await searchQueries(req.query, plantID)
+        } else {
+            const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).get()
+
+            categoriesWithInstruments.forEach(category => {
+                data.push(category.data().categoryName)
+            })
+        }
+
+        return res.status(200).json({
+            count: data.length,
+            data: data
+        })
+    })
+}

@@ -2,8 +2,7 @@ const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
 module.exports.addInstrumentsModbusAddress = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const data = req.body.data
 
     // check if data is an array
@@ -141,9 +140,77 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
 module.exports.addReport = async (plantID, address, timestamp, value) => {
     try {
         const plant = await firestore.collection('plants').doc(plantID).get()
+        const adminid = plant.data().selectedAdmin
 
-        if(plant.exists){
-            
+        const admin = await firestore.collection('users').doc(adminid).get()
+
+        if(admin.exists){
+            const fcm_token = admin.data().fcmToken
+
+            if(plant.exists){
+                const addressDoc = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
+                const TagNo = addressDoc.data().TagNo
+    
+                if(addressDoc.exists){
+                    let today = new Date()
+    
+                    if(today.getMonth()<10 && today.getDate()<10)
+                        today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-0'+today.getDate()}`
+                    else if(today.getMonth()<10) 
+                        today = `${today.getFullYear()+'-0'+(today.getMonth()+1)+'-'+today.getDate()}`
+                    else if(today.getDate()<10) 
+                        today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-0'+today.getDate()}`
+                    else 
+                        today = `${today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate()}`
+                    
+    
+                    await firestore.collection(`plants/${plantID}/InstrumentData/${address}/reports`).doc(today).set({
+                        [timestamp]: value
+                    })
+    
+                    addressDoc.ref.update({
+                        latestData: {
+                            date: today,
+                            time: timestamp,
+                            value: value
+                        }
+                    })
+    
+                    const localPlantInstruments = require(`../../data/instruments/${plantID}.json`).data
+                    
+                    for (let i = 0; i < localPlantInstruments.length; i++) {
+                        const instrument = localPlantInstruments[i];
+                        if(instrument.TagNo === TagNo){
+                            const lowerLimit = instrument.lowerLimit
+                            const upperLimit = instrument.upperLimit
+    
+                            if(value < lowerLimit || value > upperLimit){
+                                // send notification to plant admin
+                                const fcm_token = industry.get('fcm_token')
+
+                                const message = {
+                                    data: {
+                                        title: "Instrument flow alert!!!",
+                                        body: `Instrument has crossed the flow limit`,
+                                        instrument: TagNo,
+                                        value: value,
+                                        timestamp: timestamp,
+                                        lowerLimit: lowerLimit,
+                                        upperLimit: upperLimit,
+                                        address: address
+                                    },
+                                    token: fcm_token
+                                }
+
+                                await getMessaging().send(message)
+                            }
+    
+                            break
+                        }
+                    }
+    
+                }
+            }
         }
 
     } catch (error) {
@@ -152,8 +219,7 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
 }
 
 module.exports.getAllAddress = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const data = req.body.data
 
     firestore.collection('users').doc(adminuid).get()
@@ -251,16 +317,21 @@ module.exports.getAllAddress = (req,res) => {
             data: dataToReturn
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.getReport = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     let address = req.query.address
     const year = req.query.year
     let month = req.query.month
 
-    if(address){
+    if(address !== undefined){
         address = parseInt(address)
     
         if(address < 0){
@@ -306,7 +377,7 @@ module.exports.getReport = (req,res) => {
         const plantID = admin.data().plantID
 
         let dataToReturn = []
-        if(address){
+        if(address !== undefined){
             const InstrumentData = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
     
             if(!InstrumentData.exists){
@@ -372,11 +443,16 @@ module.exports.getReport = (req,res) => {
             data: dataToReturn
         })
     })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
 }
 
 module.exports.updateTagNo = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     const address = req.body.address
     const TagNo = req.body.TagNo
 
@@ -487,8 +563,7 @@ module.exports.updateTagNo = (req,res) => {
 }
 
 module.exports.deleteAddress = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminuid = req.userData.uid
     let address = req.params.address
 
     address = parseInt(address)
@@ -543,78 +618,10 @@ module.exports.deleteAddress = (req,res) => {
             message: "Address deleted successfully"
         })
     })
-}
-
-module.exports.reporter = async (req,res) => {
-    const reportData = require('../../scripts/generated_data.json').data
-
-    try {
-
-        for (let address = 0; address < 20; address++) {
-
-            for (let i = 0; i < reportData.length; i++) {
-                const element = reportData[i];
-                const values = element.values
-
-                await firestore.collection(`plants/P0/InstrumentData/${address}/reports`).doc(element.date).set({
-                    "00:00": values["00:00"],
-                    "00:30": values["00:30"],
-                    "01:00": values["01:00"],
-                    "01:30": values["01:30"],
-                    "02:00": values["02:00"],
-                    "02:30": values["02:30"],
-                    "03:00": values["03:00"],
-                    "03:30": values["03:30"],
-                    "04:00": values["04:00"],
-                    "04:30": values["04:30"],
-                    "05:00": values["05:00"],
-                    "05:30": values["05:30"],
-                    "06:00": values["06:00"],
-                    "06:30": values["06:30"],
-                    "07:00": values["07:00"],
-                    "07:30": values["07:30"],
-                    "08:00": values["08:00"],
-                    "08:30": values["08:30"],
-                    "09:00": values["09:00"],
-                    "09:30": values["09:30"],
-                    "10:00": values["10:00"],
-                    "10:30": values["10:30"],
-                    "11:00": values["11:00"],
-                    "11:30": values["11:30"],
-                    "12:00": values["12:00"],
-                    "12:30": values["12:30"],
-                    "13:00": values["13:00"],
-                    "13:30": values["13:30"],
-                    "14:00": values["14:00"],
-                    "14:30": values["14:30"],
-                    "15:00": values["15:00"],
-                    "15:30": values["15:30"],
-                    "16:00": values["16:00"],
-                    "16:30": values["16:30"],
-                    "17:00": values["17:00"],
-                    "17:30": values["17:30"],
-                    "18:00": values["18:00"],
-                    "18:30": values["18:30"],
-                    "19:00": values["19:00"],
-                    "19:30": values["19:30"],
-                    "20:00": values["20:00"],
-                    "20:30": values["20:30"],
-                    "21:00": values["21:00"],
-                    "21:30": values["21:30"],
-                    "22:00": values["22:00"],
-                    "22:30": values["22:30"],
-                    "23:00": values["23:00"],
-                    "23:30": values["23:30"],
-                })
-            }
-        }
-
-        return res.status(200).json({
-            message: 'ok'
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
         })
-
-    } catch (error) {
-        console.log(error);
-    }
+    })
 }
-
