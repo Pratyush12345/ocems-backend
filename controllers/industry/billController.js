@@ -125,6 +125,25 @@ module.exports.getBillApprovalRequests = async (req,res) => {
     })
 }
 
+function isValidDate(dateString) {
+    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+    
+    if (!regex.test(dateString)) {
+        return false; // Invalid format
+    }
+
+    const parts = dateString.split('/');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    const isValidDay = day >= 1 && day <= 31;
+    const isValidMonth = month >= 1 && month <= 12;
+    const isValidYear = year >= 1000 && year <= 9999;
+
+    return isValidDay && isValidMonth && isValidYear;
+}
+
 module.exports.createBill = async (req, res) => {
     const description = req.body.description
     const goods = req.body.goods
@@ -170,77 +189,46 @@ module.exports.createBill = async (req, res) => {
     
             let starting = good.starting
             let ending = good.ending
-    
-            if(good.isYearlyorMonthtly!=="Monthly" && good.isYearlyorMonthtly!=="Yearly"){
+            
+            if(starting===undefined || ending===undefined){
                 return res.status(400).json({
-                    message: `Please provide valid isYearlyorMonthtly value for good ${i+1}`
+                    message: `Please provide starting and ending date for good ${i+1}`
                 })
             }
-            
-            if(good.isYearlyorMonthtly==="Yearly"){
-                starting = parseInt(starting)
-                ending = parseInt(ending)
-                
-                if(starting.toString().length!==4 || ending.toString().length!==4){
-                    return res.status(400).json({
-                        message: `Please provide starting and ending year as four digits integer for good ${i+1}`
-                    })
-                }
 
-                if(starting>=ending){
-                    return res.status(400).json({
-                        message: `The starting year should be strictly less than the ending year of good ${i+1}`
-                    })
-                }
+            // check if starting and ending are of format DD/MM/YYYY
+            if(!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(starting) || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(ending)){
+                return res.status(400).json({
+                    message: `Please provide starting and ending date in DD/MM/YYYY format for good ${i+1}`
+                })
+            }
 
-                if(date.getFullYear()<ending){
-                    return res.status(400).json({
-                        message: `Can't create a bill for future for good ${i+1}`
-                    })
-                }
-                
-            } else {
-                const startingMonth = parseInt(starting.substr(0,2))
-                const endingMonth = parseInt(ending.substr(0,2))
-                const startingYear = parseInt(starting.substr(3))
-                const endingYear = parseInt(ending.substr(3))
+            // check if starting and ending are valid dates
+            if(!isValidDate(starting) || !isValidDate(ending)){
+                return res.status(400).json({
+                    message: `Please provide valid starting and ending date for good ${i+1}`
+                })
+            }
 
-                if(startingMonth>12 || endingMonth>12){
-                    return res.status(400).json({
-                        message: `Please provide valid month value for good ${i+1}`
-                    })
-                }
+            // check if starting date is before ending date
+            if(new Date(starting) > new Date(ending)){
+                return res.status(400).json({
+                    message: `Starting date should be before ending date for good ${i+1}`
+                })
+            }
 
-                if(date.getFullYear()<endingYear){
-                    return res.status(400).json({
-                        message: `Can't create a bill for future for good ${i+1}`
-                    })
-                }
+            // check if starting date is not of future
+            if(new Date(starting) > new Date()){
+                return res.status(400).json({
+                    message: `Starting date should not be of future for good ${i+1}`
+                })
+            }
 
-                if(starting.substr(0,2).charAt(1)==='/'){
-                    return res.status(400).json({
-                        message: `Please provide starting month as two digits integer, eg. 05, 06 for good ${i+1}`
-                    })
-                }
-
-                if(ending.substr(0,2).charAt(1)==='/'){
-                    return res.status(400).json({
-                        message: `Please provide ending month as two digits integer, eg. 05, 06 for good ${i+1}`
-                    })
-                }
-
-                // not checking for startingMonth>=endingMonth as it is possible in the case for eg. 10/2023 to 02/2024
-                if(startingMonth===endingMonth && startingYear===endingYear){
-                    return res.status(400).json({
-                        message: `Starting month can't be same as ending month for the same year for good ${i+1}`
-                    })
-                }
-
-                if(startingYear>endingYear) {
-                    return res.status(400).json({
-                        message: `Starting year can't be greater than ending year for good ${i+1}`
-                    })
-                }
+            // check if ending date is not of future
+            if(new Date(ending) > new Date()){
+                return res.status(400).json({
+                    message: `Ending date should not be of future for good ${i+1}`
+                })
             }
             
             const masterBill = await firestore.collection(`plants/${plantID}/billMasterCopy`).doc(good.masterCopyID).get()

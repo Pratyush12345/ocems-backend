@@ -1246,8 +1246,7 @@ const searchQueries = async (queryObject, plantID) => {
             }
         }  
     }
-    console.log(data.length);
-    console.log(lioData.length);
+
     if(data.length !== 0 && lioData.length !== 0){
         // if an element of data is not present in lioData, remove it from data
         data = data.filter((instrument) => {
