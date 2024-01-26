@@ -18,7 +18,7 @@ const billRecieptStorage = multer({
 
 router.use('/master', require('./billMaster'))
 
-router.get('/:industryid', checkAuth, billController.getBills)
+router.get('/get/:industryid', checkAuth, billController.getBills)
 router.get('/requests', checkAuth, billController.getBillApprovalRequests)
 
 router.post('/create/:industryid', checkAuth, billController.createBill)
