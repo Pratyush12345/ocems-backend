@@ -77,7 +77,6 @@ module.exports.updateUser = (req,res) => {
     const adminuid = req.userData.uid
     const useruid = req.params.useruid
     const updatedData = req.body.updateData
-
     if(useruid==="fcm_token"){
         const fcmToken = req.body.fcm_token
 

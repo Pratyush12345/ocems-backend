@@ -1,5 +1,6 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
+const { getMessaging } = require('firebase-admin/messaging');
 
 function extractInstrumentCode(inputString) {
     const match = inputString.match(/^[A-Za-z\s]+/);
@@ -139,13 +140,21 @@ module.exports.alertsCount = (req,res) => {
 
 module.exports.test = async (req,res) => {
     try {
-        const testdata = await firestore.collection("plants/P0/InstrumentAlerts").doc('8cqHBJaqsosiBNWOHbHK').get()
+        const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+        const admin = await firestore.collection('users').doc(adminuid).get()
+        const fcm_token = admin.get('fcmToken')
+        const message = {
+            notification: {
+                title: "Instrument Alert!!",
+                body: `An instrument has crossed the threshold value.`
+            },
+            token: fcm_token
+        }
 
-        const firebaseTimestamp = testdata.data().timestamp
-        const dateObject = new Date(firebaseTimestamp.seconds * 1000 + firebaseTimestamp.nanoseconds / 1e6);
-        console.log(dateObject.toLocaleString());
+        await getMessaging().send(message)
+
         return res.status(200).json({
-            message: testdata.data()
+            message: "noti sent"
         })
     } catch (error) {
         return res.status(200).json({

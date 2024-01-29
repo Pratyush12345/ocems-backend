@@ -1,5 +1,6 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
+const { getMessaging } = require('firebase-admin/messaging');
 
 module.exports.addInstrumentsModbusAddress = (req,res) => {
     const adminuid = req.userData.uid
@@ -190,8 +191,6 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
 
                             if(value < lowerLimit || value > upperLimit){
                                 // send notification to plant admin
-                                const fcm_token = industry.get('fcm_token')
-
                                 const message = {
                                     data: {
                                         title: "Instrument flow alert!!!",
