@@ -183,7 +183,11 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
                         if(instrument.TagNo === TagNo){
                             const lowerLimit = instrument.lowerLimit
                             const upperLimit = instrument.upperLimit
-    
+                            
+                            const messageText = value < lowerLimit ? 
+                                `Reading below the lower limit with value: ${value}` : 
+                                `Reading above the upper limit with value: ${value}`
+
                             if(value < lowerLimit || value > upperLimit){
                                 // send notification to plant admin
                                 const fcm_token = industry.get('fcm_token')
@@ -191,7 +195,7 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
                                 const message = {
                                     data: {
                                         title: "Instrument flow alert!!!",
-                                        body: `Instrument has crossed the flow limit`,
+                                        body: messageText,
                                         instrument: TagNo,
                                         value: value,
                                         timestamp: timestamp,
@@ -204,7 +208,13 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
 
                                 await getMessaging().send(message)
                             }
-    
+
+                            await firestore.collection(`plants/${plantID}/InstrumentAlerts`).add({
+                                TagNo: TagNo,
+                                timestamp: new Date(),
+                                description: messageText
+                            })
+
                             break
                         }
                     }
