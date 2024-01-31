@@ -6,6 +6,7 @@ const checkAuth = require('../../middlewares/check-auth')
 
 router.use('/instrument', require('./instrument'))
 router.use('/chamber', require('./chamber'))
+router.use('/alert', require('./alert'))
 
 // Department Access routes
 router.get('/department', checkAuth, plantController.getDepartmentAccess)

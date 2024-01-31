@@ -915,6 +915,13 @@ module.exports.getFilters = async (req,res) => {
     const adminuid = req.userData.uid
     // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
     const categoryName = req.query.category
+    const filterName = req.query.filterName
+
+    if(categoryName && filterName){
+        return res.status(400).json({
+            message: "You can only query for one category or one filter"
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -999,6 +1006,13 @@ module.exports.getFilters = async (req,res) => {
                 })
             }
             
+        } else if (filterName) {
+            filters.forEach(filter => {
+                if(filter.data().filterName === filterName){
+                    data.push(filter.data())
+                    return
+                }
+            })
         } else {
             filters.forEach(filter => {
                 data.push(filter.data())
