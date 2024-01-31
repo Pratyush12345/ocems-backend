@@ -262,6 +262,7 @@ module.exports.getAllFlowData = (req,res) => {
     // const adminuid = req.userData.uid
     const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
     const industryid = req.query.industryid
+    const date = req.query.date
 
     if(!industryid){
         return res.status(400).json({
@@ -285,16 +286,40 @@ module.exports.getAllFlowData = (req,res) => {
         } 
         plantID = admin.get('plantID')
         
-        const industryData = await firestore.collection(`plants/${plantID}/industryUsers/${industryid}/flowData`).get()
-
         const data = []
-        for (let i = 0; i < industryData.docs.length; i++) {
-            const element = industryData.docs[i];
-            
+
+        if(date) {
+            // check the format of the date to be YYYY-MM
+            const dateRegex = /^\d{4}-\d{2}$/
+            if(!dateRegex.test(date)){
+                return res.status(400).json({
+                    message: "Date should be in the format YYYY-MM"
+                })
+            }
+
+            const industryData = await firestore.collection(`plants/${plantID}/industryUsers/${industryid}/flowData`).doc(date).get()
+            if(!industryData.exists){
+                return res.status(404).json({
+                    message: "No data available"
+                })
+            }
+
             data.push({
-                id: element.id,
-                data: element.data()
+                id: industryData.id,
+                data: industryData.data()
             })
+        } else {
+            const industryData = await firestore.collection(`plants/${plantID}/industryUsers/${industryid}/flowData`).get()
+    
+            for (let i = 0; i < industryData.docs.length; i++) {
+                const element = industryData.docs[i];
+                
+                data.push({
+                    id: element.id,
+                    data: element.data()
+                })
+            }
+
         }
 
         return res.status(200).json({

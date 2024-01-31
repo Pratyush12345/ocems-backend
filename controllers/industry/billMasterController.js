@@ -1,5 +1,6 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
+const db = firebase.database()
 
 module.exports.getMasterCopiesTypes = (req,res) => {
     const adminuid = req.userData.uid
@@ -20,18 +21,10 @@ module.exports.getMasterCopiesTypes = (req,res) => {
 
         const plantID = admin.get('plantID')
 
-        const billMasterTypes = await firestore.collection(`plants/${plantID}/billMasterCopy`).get()
-
-        const types = []
-        // get all unique types from bill master copies using the field 'type'
-        billMasterTypes.forEach(doc => {
-            if(!types.includes(doc.get('type'))){
-                types.push(doc.get('type'))
-            }
-        })
+        const masterBillTypes = (await db.ref(`BillTypes`).once('value')).val()
 
         return res.status(200).json({
-            types: types
+            types: masterBillTypes
         })
     })
     .catch(err => {

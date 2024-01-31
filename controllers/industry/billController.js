@@ -4,6 +4,7 @@ const storage = firebase.storage()
 const bucket = storage.bucket()
 const fs = require('fs')
 const { getMessaging } = require('firebase-admin/messaging');
+const db = firebase.database()
 
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
@@ -189,7 +190,9 @@ module.exports.createBill = async (req, res) => {
     
             let starting = good.starting
             let ending = good.ending
-            
+            let qty = good.qty
+            let type = good.type
+
             if(starting===undefined || ending===undefined){
                 return res.status(400).json({
                     message: `Please provide starting and ending date for good ${i+1}`
@@ -231,6 +234,41 @@ module.exports.createBill = async (req, res) => {
                 })
             }
             
+            if(!qty) {
+                return res.status(400).json({
+                    message: `Please provide quantity for good ${i+1}`
+                })
+            }
+
+            if(typeof qty !== 'number'){
+                return res.status(400).json({
+                    message: `qty should be a number for good ${i+1}`
+                })
+            }
+
+            if(!type) {
+                return res.status(400).json({
+                    message: `Please provide type for good ${i+1}`
+                })
+            }
+
+            if(typeof type !== 'string'){
+                return res.status(400).json({
+                    message: `Please provide type as string for good ${i+1}`
+                })
+            }
+
+            const possibleTypes = [
+                "Water Consumption good",
+                "Water Flow good"
+            ]
+
+            if(!possibleTypes.includes(type)){
+                return res.status(400).json({
+                    message: `${type} is not a valid type for good ${i+1}`
+                })
+            }
+
             const masterBill = await firestore.collection(`plants/${plantID}/billMasterCopy`).doc(good.masterCopyID).get()
     
             if(!masterBill.exists){
