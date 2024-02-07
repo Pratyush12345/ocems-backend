@@ -8,24 +8,12 @@ const db = firebase.database()
 
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
-    const industryid = req.params.industryid
     const billid = req.query.bill
 
-    firestore.collection('users').doc(adminuid).get()
+    firebase.auth().getUser(adminuid)
     .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform billing operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
+        const industryid = admin.customClaims.industryid
+        const plantID = admin.customClaims.plantID
 
         const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
 
@@ -550,7 +538,8 @@ module.exports.deleteCopy = (req,res) => {
 
         // delete the reciept from firebase storage
         const filePath = bill.get('paymentRecieptPath')
-        if(filePath!=="" || filePath!==undefined){
+
+        if(filePath){
             await bucket.file(filePath).delete()
         }
 
