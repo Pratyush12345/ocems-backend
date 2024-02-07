@@ -9,11 +9,24 @@ const db = firebase.database()
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
     const billid = req.query.bill
+    let industryid = req.query.industryid
 
     firebase.auth().getUser(adminuid)
     .then(async admin => {
-        const industryid = admin.customClaims.industryid
-        const plantID = admin.customClaims.plantID
+        let plantID
+        if(admin.customClaims.role === "admin"){
+            if(!industryid){
+                return res.status(400).json({
+                    message: "Please provide industryid"
+                })
+            }
+
+            const admin = await firestore.collection('users').doc(adminuid).get()
+            plantID = admin.get('plantID')
+        } else {
+            plantID = admin.customClaims.plantID
+            industryid = admin.customClaims.industryid
+        }
 
         const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
 
