@@ -126,6 +126,7 @@ module.exports.getBillApprovalRequests = async (req,res) => {
     })
 }
 
+// date format: MM/DD/YYYY
 function isValidDate(dateString) {
     const regex = /^\d{2}\/\d{2}\/\d{4}$/;
     
@@ -134,12 +135,12 @@ function isValidDate(dateString) {
     }
 
     const parts = dateString.split('/');
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
+    const month = parseInt(parts[0], 10);
+    const day = parseInt(parts[1], 10);
     const year = parseInt(parts[2], 10);
 
-    const isValidDay = day >= 1 && day <= 31;
     const isValidMonth = month >= 1 && month <= 12;
+    const isValidDay = day >= 1 && day <= 31;
     const isValidYear = year >= 1000 && year <= 9999;
 
     return isValidDay && isValidMonth && isValidYear;
@@ -193,16 +194,16 @@ module.exports.createBill = async (req, res) => {
             let qty = good.qty
             let type = good.type
 
-            if(starting===undefined || ending===undefined){
+            if(!starting || !ending){
                 return res.status(400).json({
                     message: `Please provide starting and ending date for good ${i+1}`
                 })
             }
 
-            // check if starting and ending are of format DD/MM/YYYY
+            // check if starting and ending are of format MM/DD/YYYY
             if(!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(starting) || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(ending)){
                 return res.status(400).json({
-                    message: `Please provide starting and ending date in DD/MM/YYYY format for good ${i+1}`
+                    message: `Please provide starting and ending date in MM/DD/YYYY format for good ${i+1}`
                 })
             }
 
