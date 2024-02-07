@@ -8,24 +8,12 @@ const db = firebase.database()
 
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
-    const industryid = req.params.industryid
     const billid = req.query.bill
 
-    firestore.collection('users').doc(adminuid).get()
+    firebase.auth().getUser(adminuid)
     .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform billing operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
+        const industryid = admin.customClaims.industryid
+        const plantID = admin.customClaims.plantID
 
         const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
 
@@ -126,6 +114,7 @@ module.exports.getBillApprovalRequests = async (req,res) => {
     })
 }
 
+// date format: MM/DD/YYYY
 function isValidDate(dateString) {
     const regex = /^\d{2}\/\d{2}\/\d{4}$/;
     
@@ -134,12 +123,12 @@ function isValidDate(dateString) {
     }
 
     const parts = dateString.split('/');
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
+    const month = parseInt(parts[0], 10);
+    const day = parseInt(parts[1], 10);
     const year = parseInt(parts[2], 10);
 
-    const isValidDay = day >= 1 && day <= 31;
     const isValidMonth = month >= 1 && month <= 12;
+    const isValidDay = day >= 1 && day <= 31;
     const isValidYear = year >= 1000 && year <= 9999;
 
     return isValidDay && isValidMonth && isValidYear;
@@ -193,16 +182,16 @@ module.exports.createBill = async (req, res) => {
             let qty = good.qty
             let type = good.type
 
-            if(starting===undefined || ending===undefined){
+            if(!starting || !ending){
                 return res.status(400).json({
                     message: `Please provide starting and ending date for good ${i+1}`
                 })
             }
 
-            // check if starting and ending are of format DD/MM/YYYY
+            // check if starting and ending are of format MM/DD/YYYY
             if(!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(starting) || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(ending)){
                 return res.status(400).json({
-                    message: `Please provide starting and ending date in DD/MM/YYYY format for good ${i+1}`
+                    message: `Please provide starting and ending date in MM/DD/YYYY format for good ${i+1}`
                 })
             }
 
@@ -549,7 +538,8 @@ module.exports.deleteCopy = (req,res) => {
 
         // delete the reciept from firebase storage
         const filePath = bill.get('paymentRecieptPath')
-        if(filePath!=="" || filePath!==undefined){
+
+        if(filePath){
             await bucket.file(filePath).delete()
         }
 
