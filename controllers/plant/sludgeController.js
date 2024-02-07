@@ -263,8 +263,7 @@ const sludgeAndProcessValidator = (sludge, process, instrumentArray, update) => 
 }
 
 module.exports.createSludge = (req,res) => {
-    // const adminUid = req.userData.uid
-    const adminUid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminUid = req.userData.uid
     const sludge = req.body.sludge
     const process = req.body.process
 
@@ -424,8 +423,7 @@ const sludgeCalculator = async (plantID, sludge, processArray) => {
 }
 
 module.exports.getSludge = (req,res) => {
-    // const adminUid = req.userData.uid
-    const adminUid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminUid = req.userData.uid
     const sludgeId = req.query.id
 
     if(!sludgeId){
@@ -478,8 +476,7 @@ module.exports.getSludge = (req,res) => {
 }
 
 module.exports.updateSludge = (req,res) => {
-    // const adminUid = req.userData.uid
-    const adminUid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminUid = req.userData.uid
     const sludgeId = req.query.id
     const sludge = req.body.sludge
     const process = req.body.process
@@ -547,8 +544,7 @@ module.exports.updateSludge = (req,res) => {
 }
 
 module.exports.deleteSludge = (req,res) => {
-    // const adminUid = req.userData.uid
-    const adminUid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const adminUid = req.userData.uid
     const sludgeId = req.query.id
 
     if(!sludgeId){
