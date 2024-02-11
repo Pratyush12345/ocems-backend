@@ -5,45 +5,76 @@ const bucket = storage.bucket()
 const fs = require('fs');
 const { getMessaging } = require('firebase-admin/messaging');
 
+/**
+ * Admin side
+ *      1. Get all notices
+ *      2. Get notices by industryid
+ *      3. Get notice by noticeid
+ * Industry side
+ *      1. Get all notices
+ *      2. Get notice by noticeid
+ */
 module.exports.getNotices = (req,res) => {
     const adminuid = req.userData.uid
-    const industryid = req.query.industryid
+    let industryid = req.query.industryid
+    const noticeid = req.query.noticeid
 
-    firestore.collection('users').doc(adminuid).get()
+    if(industryid && noticeid){
+        return res.status(400).json({
+            message: "Only one of industryid or noticeid is allowed"
+        })
+    }
+
+    firebase.auth().getUser(adminuid)
     .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
+        let plantID
+        const role = admin.customClaims.role
 
-        if(admin.get('accessLevel') !== 1){
+        if(role === 'industry'){
+            if(industryid){
+                return res.status(400).json({
+                    message: "industryid is not allowed for industry role"
+                })
+            }
+            plantID = admin.customClaims.plantID
+            industryid = admin.customClaims.industryid
+        } else if (role === 'admin'){
+            const adminData = await firestore.collection('users').doc(adminuid).get()
+            plantID = adminData.get('plantID')
+        } else {
             return res.status(401).json({
                 message: "Unauthorized Access"
             })
         }
 
-        const plantID = admin.get('plantID')
+        // Get all notices
         let query = firestore.collection(`plants/${plantID}/notices`)
         if(industryid){
-            const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-            if(!industry.exists){
-                return res.status(404).json({
-                    message: "Industry not found"
-                })
-            }
-
             query = query.where('industries', 'array-contains', industryid)
         }
+        if(role === "admin" && noticeid){
+            query = query.doc(noticeid)
+        }
+        let snapshot = await query.get()
 
-        const notices = await query.get()
-        const noticesArray = []
-        notices.forEach(notice => {
-            noticesArray.push(notice.data())
+        let notices = []
+        
+        if(!snapshot.docs)
+        snapshot = [snapshot]
+    
+        snapshot.forEach(doc => {
+            notices.push({
+                id: doc.id,
+                data: doc.data()
+            })
         })
+        
+        if(role === 'industry' && noticeid){
+            notices = notices.filter(notice => notice.id === noticeid)
+        }
 
         return res.status(200).json({
-            notices: noticesArray
+            notices: notices
         })
     })
     .catch(err => {
@@ -182,6 +213,88 @@ module.exports.createNotice = (req,res) => {
         })
     })
 }
+
+module.exports.updateNotice = (req,res) => {
+    const adminuid = req.userData.uid
+    const isNew = req.body.isNew
+    const noticeid = req.params.noticeid
+    const industryid = req.params.industryid
+
+    if(!industryid){
+        return res.status(400).json({
+            message: "industryid is required"
+        })
+    }
+
+    if(!noticeid){
+        return res.status(400).json({
+            message: "noticeid is required"
+        })
+    }
+
+    if(isNew===undefined){
+        return res.status(400).json({
+            message: "isNew is required"
+        })
+    }
+    
+    // isNew is a boolean value
+    if(typeof isNew !== 'boolean'){ 
+        return res.status(400).json({
+            message: "isNew must be a boolean value"
+        })
+    }
+
+    firestore.collection('users').doc(adminuid).get()
+    .then(async admin => {
+        if(!admin.exists){
+            return res.status(404).json({
+                message: "Admin doesn't exist"
+            })
+        }
+
+        if(admin.get('accessLevel') !== 1){
+            return res.status(401).json({
+                message: "Unauthorized Access"
+            })
+        }
+
+        const plantID = admin.get('plantID')
+
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry not found"
+            })
+        }
+
+        const notice = await industry.ref.collection('notices').doc(noticeid).get()
+
+        if(!notice.exists){
+            return res.status(404).json({
+                message: "Notice not found"
+            })
+        }
+
+        await notice.ref.update({
+            isNew: isNew
+        })
+
+        return res.status(201).json({
+            message: "Notice updated successfully"
+        })
+    })
+    .catch(err => {
+        console.log(err);
+        return res.status(500).json({
+            error: err
+        })
+    })
+
+
+}
+
 
 module.exports.deleteNotice = (req,res) => {
     const noticeid = req.params.noticeid
