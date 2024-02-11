@@ -124,10 +124,11 @@ module.exports.signUp = async (req,res) => {
         })
     })
 }
-
+ 
 // returns all industries of a plant using admin's id
 module.exports.getRequests = (req,res) => {
     const adminuid = req.userData.uid
+    const industryid = req.query.id
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -144,19 +145,40 @@ module.exports.getRequests = (req,res) => {
         }
 
         const plantID = admin.get('plantID')
-        const requests = await firestore.collection(`plants/${plantID}/industryUsers`).where('approved', '==', true).get()
-        
-        const industries = [];
-        requests.forEach((doc) => {
-            industries.push({
-                id: doc.id,
-                data: doc.data()
-            });
-        });
 
-        return res.status(200).json({
-            industries: industries
-        })
+        if(industryid){
+            const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+            if(!industry.exists){
+                return res.status(404).json({
+                    message: "Industry not found"
+                })
+            } else if(industry.get('approved')) {
+                return res.status(200).json({
+                    industries: [
+                        {
+                            id: industry.id,
+                            data: industry.data()
+                        }
+                    ]
+                })
+            }
+        } else {
+            const requests = await firestore.collection(`plants/${plantID}/industryUsers`).where('approved', '==', true).get()
+            
+            const industries = [];
+            requests.forEach((doc) => {
+                industries.push({
+                    id: doc.id,
+                    data: doc.data()
+                });
+            });
+    
+            return res.status(200).json({
+                industries: industries
+            })
+            
+        }
+
     })
     .catch(err => {
         console.log(err);
