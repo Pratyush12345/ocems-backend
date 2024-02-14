@@ -18,7 +18,7 @@ const noticeStorage = multer({
 
 router.get('/', checkAuth, noticeController.getNotices)
 router.post('/create', checkAuth, checkAdmin, noticeStorage, noticeController.createNotice)
-router.patch('/update/:industryid/:noticeid', checkAuth, noticeController.updateNotice)
+router.patch('/update/:industryid/:noticeid', checkAuth, noticeController.updateIsNew)
 router.delete('/delete/:noticeid', checkAuth, checkAdmin, noticeController.deleteNotice)
 
 module.exports = router

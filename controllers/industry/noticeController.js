@@ -214,60 +214,24 @@ module.exports.createNotice = (req,res) => {
     })
 }
 
-module.exports.updateNotice = (req,res) => {
-    const adminuid = req.userData.uid
-    const isNew = req.body.isNew
+module.exports.updateIsNew = (req,res) => {
+    const industryuid = req.userData.uid
     const noticeid = req.params.noticeid
     const industryid = req.params.industryid
+    let isNew = req.params.isNew 
 
-    if(!industryid){
-        return res.status(400).json({
-            message: "industryid is required"
-        })
-    }
-
-    if(!noticeid){
-        return res.status(400).json({
-            message: "noticeid is required"
-        })
-    }
-
-    if(isNew===undefined){
-        return res.status(400).json({
-            message: "isNew is required"
-        })
-    }
-    
-    // isNew is a boolean value
-    if(typeof isNew !== 'boolean'){ 
+    if(isNew !== 'true' && isNew !== 'false'){
         return res.status(400).json({
             message: "isNew must be a boolean value"
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
+    isNew = Boolean(isNew)
 
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Unauthorized Access"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
-        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-
-        if(!industry.exists){
-            return res.status(404).json({
-                message: "Industry not found"
-            })
-        }
+    firebase.auth().getUser(industryuid)
+    .then(async industry => {
+        const plantID = industry.customClaims.plantID
+        const industryid = industry.customClaims.industryid
 
         const notice = await industry.ref.collection('notices').doc(noticeid).get()
 
@@ -291,7 +255,6 @@ module.exports.updateNotice = (req,res) => {
             error: err
         })
     })
-
 
 }
 

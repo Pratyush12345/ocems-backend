@@ -128,23 +128,29 @@ module.exports.signUp = async (req,res) => {
 // returns all industries of a plant using admin's id
 module.exports.getRequests = (req,res) => {
     const adminuid = req.userData.uid
-    const industryid = req.query.id
+    let industryid = req.query.id
 
-    firestore.collection('users').doc(adminuid).get()
+    firebase.auth().getUser(adminuid)
     .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "admin not found"
-            })
-        }
+        let plantID 
 
-        if(admin.get('accessLevel')!==1){
+        if(admin.customClaims.role === "industry"){
+            if(industryid){
+                return res.status(400).json({
+                    message: "Industry ID can't be present for an industry user."
+                })
+            }
+
+            industryid = admin.customClaims.industryid
+            plantID = admin.customClaims.plantID
+        } else if (admin.customClaims.role === "admin") {
+            const admin = await firestore.collection('users').doc(adminuid).get()
+            plantID = admin.get('plantID')
+        } else {
             return res.status(401).json({
-                message: "Only admin can get industries"
+                message: "Only admin or industry can get industries"
             })
         }
-
-        const plantID = admin.get('plantID')
 
         if(industryid){
             const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
