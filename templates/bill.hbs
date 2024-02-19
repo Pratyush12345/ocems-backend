@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bill</title>
+        <style>
+            .main-body {
+                margin: 10px;
+                border: 1px solid black;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: start;
+                word-wrap: break-word;
+                line-height: 0.5;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: smaller;
+            }
+
+            .header {
+                width: 100%;
+            }
+
+            .gst-head {
+                padding-left: 10px;
+                text-align: start;
+            }
+
+            .plant-details {
+                text-align: center;
+                border-bottom: 1px solid black;
+            }
+
+            .industry {
+                width: 100%;
+                border-bottom: 1px solid black;
+                display: flex;
+            }
+
+            .industry-details {
+                padding: 10px;
+                width: 50%;
+                border-right: 1px solid black;
+            }
+
+            .bill-details {
+                padding: 10px;
+                width: 50%;
+            }
+
+            .goods {
+                width: 100%;
+            }
+
+            .goods-table {
+                width: 100%;
+                border-collapse: collapse;
+                border-bottom: 1px solid black;
+                line-height: 1;
+            }
+
+            .theadingElement {
+                border-right: 1px solid black;
+                padding: 15px 1.5px;
+            }
+
+            .head-row {
+                border-bottom: 1px solid black;
+            }
+
+            tbody {
+                text-align: start;
+            }
+
+            .tdataElement {
+                padding: 2px 5px;
+                border-right: 1px solid black;
+            }
+
+            .calculations {
+                width: 100%;
+                border-bottom: 1px solid black;
+            }
+
+            .tax-table {
+                width: 50%;
+                border-collapse: collapse;
+                line-height: 1;
+            }
+
+            .tax-head-element {
+                padding: 10px;
+            }
+
+            .tax-data-element {
+                padding: 5px;
+            }
+
+            .declaration {
+                width: 100%;
+                border-bottom: 1px solid black;
+                text-align: center;
+            }
+
+            .bank-details {
+                width: 100%;
+                border-bottom: 1px solid black;
+                text-align: start;
+                line-height: 10%;
+            }
+
+            .footer {
+                width: 100%;
+                display: inline-flex;
+            }
+
+            .tAndc {
+                padding: 0 10px;
+                width: 50%;
+                border-right: 1px solid black;
+                line-height: 100%;
+            }
+
+            .signatory {
+                width: 50%;
+            }
+
+            .receiver {
+                padding-left: 10px;
+                height: 30%;
+                display: flex;
+                border-bottom: 1px solid black;
+            }
+
+            .plant-signature {
+                height: 70%;
+                text-align: end;
+                padding-right: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="main-body">
+            <div class="header">
+                <h3 class="gst-head">
+                    GSTIN:
+                    <span style="font-weight: 400">08AAHCB7377H1ZA</span>
+                </h3>
+                <div class="plant-details">
+                    <h3><u>Proforma Details</u></h3>
+                    <h1>Bhiwadi Jal Pradushan Nivaran Asso.</h1>
+                    <p>
+                        Opposite New Bus Stand Bhiwadi Mode, Bhiwadi-301019
+                        Distt. Alwar (Raj.)
+                    </p>
+                    <p>CIN: U41000RJ2018NPL060720; PAN: AAHCB7377H</p>
+                    <p>Tel.: 9352449481; Email: cetppradushan@gmail.com</p>
+                </div>
+            </div>
+            <div class="industry">
+                <div class="industry-details">
+                    <h3>Party Details:</h3>
+                    <p>M/S Amit Yadav</p>
+                    <p>H1 1334</p>
+                    <p style="padding-top: 40px">GSTIN/UIN: 08AAHCB7377H1ZA</p>
+                </div>
+                <div class="bill-details">
+                    <h4>
+                        Quotation Number:
+                        <span style="font-weight: 400">PI/1071/2023-24</span>
+                    </h4>
+                    <h4>
+                        Dated:
+                        <span style="font-weight: 400">16/01/2024</span>
+                    </h4>
+                </div>
+            </div>
+            <div class="goods">
+                <table class="goods-table">
+                    <thead>
+                        <tr
+                            class="head-row"
+                            style="border-bottom: 1px solid black"
+                        >
+                            <th class="theadingElement">S. No.</th>
+                            <th class="theadingElement">
+                                Description of Goods
+                            </th>
+                            <th class="theadingElement">HSN/SAC</th>
+                            <th class="theadingElement">Quantity</th>
+                            <th class="theadingElement">Unit</th>
+                            <th class="theadingElement">Price</th>
+                            <th class="theadingElement">CGST Rate</th>
+                            <th class="theadingElement">CGST Amount</th>
+                            <th class="theadingElement">SGST Rate</th>
+                            <th class="theadingElement">SGST Amount</th>
+                            <th class="">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="tdataElement">1</td>
+                            <td class="tdataElement">Water Treatment Plant</td>
+                            <td class="tdataElement">84212190</td>
+                            <td class="tdataElement">1</td>
+                            <td class="tdataElement">meter cube</td>
+                            <td class="tdataElement">₹100000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="">₹118000</td>
+                        </tr>
+                        <tr>
+                            <td class="tdataElement">2</td>
+                            <td class="tdataElement">Water Treatment Plant</td>
+                            <td class="tdataElement">84212190</td>
+                            <td class="tdataElement">1</td>
+                            <td class="tdataElement">Nos</td>
+                            <td class="tdataElement">₹100000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="">₹118000</td>
+                        </tr>
+                        <tr>
+                            <td class="tdataElement">3</td>
+                            <td class="tdataElement">Water Treatment Plant</td>
+                            <td class="tdataElement">84212190</td>
+                            <td class="tdataElement">1</td>
+                            <td class="tdataElement">Nos</td>
+                            <td class="tdataElement">₹100000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="tdataElement">9%</td>
+                            <td class="tdataElement">₹9000</td>
+                            <td class="">₹118000</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="calculations">
+                <div style="text-align: end">
+                    <h3 style="padding-right: 10px">
+                        Total Amount:
+                        <span style="font-weight: 400">₹354000</span>
+                    </h3>
+                </div>
+                <div class="taxes">
+                    <table class="tax-table">
+                        <thead>
+                            <tr>
+                                <th class="tax-head-element">
+                                    <u>HSN/SAC </u>
+                                </th>
+                                <th class="tax-head-element">
+                                    <u>Tax Rate </u>
+                                </th>
+                                <th class="tax-head-element">
+                                    <u>Taxable amount </u>
+                                </th>
+                                <th class="tax-head-element">
+                                    <u>CGST Amount </u>
+                                </th>
+                                <th class="tax-head-element">
+                                    <u>SGST Amount </u>
+                                </th>
+                                <th class="tax-head-element">
+                                    <u>Total Tax </u>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="tax-data-element">84212190</td>
+                                <td class="tax-data-element">9%</td>
+                                <td class="tax-data-element">₹354000</td>
+                                <td class="tax-data-element">₹31860</td>
+                                <td class="tax-data-element">₹31860</td>
+                                <td class="tax-data-element">₹63720</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <h3 style="padding-left: 10px; padding-top: 10px">
+                        Three Lakh Fifty Four Thousand Only
+                    </h3>
+                </div>
+            </div>
+            <div class="declaration">
+                <h3><u>Declaration</u></h3>
+                <p>
+                    Note: GST invoice will be issued at the time of payment
+                    receipt.
+                </p>
+            </div>
+            <div class="bank-details">
+                <div style="padding-left: 10px">
+                    <h3>Bank Details</h3>
+                    <h4>
+                        Bank Name:
+                        <span style="font-weight: 400">HDFC Bank</span>
+                    </h4>
+                    <h4>
+                        Branch Address:
+                        <span style="font-weight: 400"
+                            >Neelam Chowk, Bhiwadi.</span
+                        >
+                    </h4>
+                    <h4>
+                        Account Number:
+                        <span style="font-weight: 400">50200039429500</span>
+                    </h4>
+                    <h4>
+                        IFSC Code:
+                        <span style="font-weight: 400">HDFC0000281</span>
+                    </h4>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="tAndc">
+                    <h3><u>Terms and Conditions</u></h3>
+                    <ol>
+                        <li>Goods once sold will not be taken back.</li>
+                        <li>
+                            Interest @24% p.a. will be charged after 30 days of
+                            the due date.
+                        </li>
+                        <li>
+                            All disputes are subject to Bhiwadi Jurisdiction.
+                        </li>
+                    </ol>
+                </div>
+                <div class="signatory">
+                    <div class="receiver">
+                        <h3>Receiver's Signature:</h3>
+                    </div>
+                    <div class="plant-signature">
+                        <h3 style="margin-bottom: 4rem; line-height: 1;">
+                            for Bhiwadi Jal Pradushan Nivaran Asso.
+                        </h3>
+                        <h3>Authorised Signatory</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
