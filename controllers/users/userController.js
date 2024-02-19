@@ -73,10 +73,11 @@ module.exports.getUsers = (req,res) => {
     });
 }
 
-module.exports.updateUser = (req,res) => {
+module.exports.updateUser = async (req,res) => {
     const adminuid = req.userData.uid
     const useruid = req.params.useruid
     const updatedData = req.body.updateData
+
     if(useruid==="fcm_token"){
         const fcmToken = req.body.fcm_token
 
@@ -92,20 +93,40 @@ module.exports.updateUser = (req,res) => {
             })
         }
 
-        firestore.collection('users').doc(adminuid).update({
-            fcmToken: fcmToken
-        })
-        .then(result => {
-            return res.status(200).json({
-                message: "FCM Token updated successfully"
+        const user = await firebase.auth().getUser(adminuid)
+
+        if(user.customClaims.role === 'industry'){
+            firestore.collection(`plants/${user.customClaims.plantID}/industryUsers`).doc(`${user.customClaims.industryid}`).update({
+                fcm_token: fcmToken
             })
-        })
-        .catch(err => {
-            console.log(err);
-            return res.status(500).json({
-                error: err
+            .then(result => {
+                return res.status(200).json({
+                    message: "FCM Token updated successfully"
+                })
             })
-        })
+            .catch(err => {
+                console.log(err);
+                return res.status(500).json({
+                    error: err
+                })
+            })
+        } else {
+            firestore.collection('users').doc(adminuid).update({
+                fcmToken: fcmToken
+            })
+            .then(result => {
+                return res.status(200).json({
+                    message: "FCM Token updated successfully"
+                })
+            })
+            .catch(err => {
+                console.log(err);
+                return res.status(500).json({
+                    error: err
+                })
+            })
+        }
+
     } else {
         const prohibitedFields = ["accessLevel", "mailID", "roleName", "isSuspended", "plantID", "dateAdded"]
         const updateableFields = ["name", "postName", "phoneNo", "departmentAccess"]
