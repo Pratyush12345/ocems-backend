@@ -7,9 +7,10 @@ module.exports.signUp = async (req, res) => {
     const email = req.body.email
     const phoneNo = req.body.phoneNo
     const postName = req.body.postName
+    const plantID = req.body.plantID
     const superAdminId = req.userData.uid
     
-    const requiredFields = ["name", "email", "phoneNo", "postName"]
+    const requiredFields = ["name", "email", "phoneNo", "postName", "plantID"]
 
     // check if all the required fields are present by looping
     for(let i=0; i<requiredFields.length; i++){
@@ -45,10 +46,18 @@ module.exports.signUp = async (req, res) => {
     }
 
     firestore.collection('users').doc(superAdminId).get()
-    .then(user => {
+    .then(async user => {
         if(user.exists && user.get('roleName') === "superAdmin"){
             const date = new Date()
             const newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Admin_1_${date.toISOString().replace(/\s+/g, '')}`
+            
+            const plant = await firestore.collection('plants').doc(plantID).get()
+
+            if(!plant.exists){
+                return res.status(404).json({
+                    message: `Plant ${plantID} not found`
+                })
+            }
 
             firebase.auth().createUser({
                 email: email,
@@ -57,11 +66,11 @@ module.exports.signUp = async (req, res) => {
                 disabled: false
             })
             .then(async admin => {
-
                 // set custom user claims
                 await firebase.auth().setCustomUserClaims(admin.uid, {
                     role: "admin",
-                    accessLevel: 1
+                    accessLevel: 1,
+                    plantID: plantID
                 })
 
                 const newAdmin = await firestore.collection('users').doc(admin.uid).set({
@@ -71,7 +80,7 @@ module.exports.signUp = async (req, res) => {
                     name: name,
                     postName: postName,
                     roleName: "Admin",
-                    plantID: "",
+                    plantID: plantID,
                     phoneNo: phoneNo,
                     dateAdded: admin.metadata.creationTime
                 })

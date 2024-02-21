@@ -145,34 +145,33 @@
             <div class="header">
                 <h3 class="gst-head">
                     GSTIN:
-                    <span style="font-weight: 400">08AAHCB7377H1ZA</span>
+                    <span style="font-weight: 400">{{plant.gst}}</span>
                 </h3>
                 <div class="plant-details">
                     <h3><u>Proforma Details</u></h3>
-                    <h1>Bhiwadi Jal Pradushan Nivaran Asso.</h1>
+                    <h1>{{plant.name}}</h1>
                     <p>
-                        Opposite New Bus Stand Bhiwadi Mode, Bhiwadi-301019
-                        Distt. Alwar (Raj.)
+                        {{plant.address}}
                     </p>
-                    <p>CIN: U41000RJ2018NPL060720; PAN: AAHCB7377H</p>
-                    <p>Tel.: 9352449481; Email: cetppradushan@gmail.com</p>
+                    <p>CIN: {{plant.cin}}; PAN: {{plant.pan}}</p>
+                    <p>Tel.: {{plant.contact}}; Email: {{plant.email}}</p>
                 </div>
             </div>
             <div class="industry">
                 <div class="industry-details">
                     <h3>Party Details:</h3>
-                    <p>M/S Amit Yadav</p>
-                    <p>H1 1334</p>
-                    <p style="padding-top: 40px">GSTIN/UIN: 08AAHCB7377H1ZA</p>
+                    <p>{{industry.name}}</p>
+                    <p>{{industry.address}}</p>
+                    <p style="padding-top: 40px">GSTIN/UIN: {{industry.gst}}</p>
                 </div>
                 <div class="bill-details">
                     <h4>
                         Quotation Number:
-                        <span style="font-weight: 400">PI/1071/2023-24</span>
+                        <span style="font-weight: 400">{{billDetails.quotationNo}}</span>
                     </h4>
                     <h4>
                         Dated:
-                        <span style="font-weight: 400">16/01/2024</span>
+                        <span style="font-weight: 400">{{billDetails.date}}</span>
                     </h4>
                 </div>
             </div>
@@ -184,9 +183,7 @@
                             style="border-bottom: 1px solid black"
                         >
                             <th class="theadingElement">S. No.</th>
-                            <th class="theadingElement">
-                                Description of Goods
-                            </th>
+                            <th class="theadingElement">Description of Goods</th>
                             <th class="theadingElement">HSN/SAC</th>
                             <th class="theadingElement">Quantity</th>
                             <th class="theadingElement">Unit</th>
@@ -199,45 +196,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="tdataElement">1</td>
-                            <td class="tdataElement">Water Treatment Plant</td>
-                            <td class="tdataElement">84212190</td>
-                            <td class="tdataElement">1</td>
-                            <td class="tdataElement">meter cube</td>
-                            <td class="tdataElement">₹100000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="">₹118000</td>
-                        </tr>
-                        <tr>
-                            <td class="tdataElement">2</td>
-                            <td class="tdataElement">Water Treatment Plant</td>
-                            <td class="tdataElement">84212190</td>
-                            <td class="tdataElement">1</td>
-                            <td class="tdataElement">Nos</td>
-                            <td class="tdataElement">₹100000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="">₹118000</td>
-                        </tr>
-                        <tr>
-                            <td class="tdataElement">3</td>
-                            <td class="tdataElement">Water Treatment Plant</td>
-                            <td class="tdataElement">84212190</td>
-                            <td class="tdataElement">1</td>
-                            <td class="tdataElement">Nos</td>
-                            <td class="tdataElement">₹100000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="tdataElement">9%</td>
-                            <td class="tdataElement">₹9000</td>
-                            <td class="">₹118000</td>
-                        </tr>
+                        {{#each billDetails.goods as |good|}}
+                            <tr>
+                                <td class="tdataElement">{{good.index}}</td>
+                                <td class="tdataElement">{{good.description}}</td>
+                                <td class="tdataElement">{{good.hsn}}</td>
+                                <td class="tdataElement">{{good.qty}}</td>
+                                <td class="tdataElement">{{good.unit}}</td>
+                                <td class="tdataElement">₹{{good.price}}</td>
+                                <td class="tdataElement">{{good.cgstRate}}</td>
+                                <td class="tdataElement">₹{{good.cgstAmount}}</td>
+                                <td class="tdataElement">{{good.sgstRate}}</td>
+                                <td class="tdataElement">₹{{good.sgstAmount}}</td>
+                                <td class="">₹{{good.amount}}</td>
+                            </tr>
+                        {{/each}}
                     </tbody>
                 </table>
             </div>
@@ -245,76 +218,41 @@
                 <div style="text-align: end">
                     <h3 style="padding-right: 10px">
                         Total Amount:
-                        <span style="font-weight: 400">₹354000</span>
+                        <span style="font-weight: 400">₹{{billDetails.totalAmount}}</span>
                     </h3>
                 </div>
                 <div class="taxes">
-                    <table class="tax-table">
-                        <thead>
-                            <tr>
-                                <th class="tax-head-element">
-                                    <u>HSN/SAC </u>
-                                </th>
-                                <th class="tax-head-element">
-                                    <u>Tax Rate </u>
-                                </th>
-                                <th class="tax-head-element">
-                                    <u>Taxable amount </u>
-                                </th>
-                                <th class="tax-head-element">
-                                    <u>CGST Amount </u>
-                                </th>
-                                <th class="tax-head-element">
-                                    <u>SGST Amount </u>
-                                </th>
-                                <th class="tax-head-element">
-                                    <u>Total Tax </u>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="tax-data-element">84212190</td>
-                                <td class="tax-data-element">9%</td>
-                                <td class="tax-data-element">₹354000</td>
-                                <td class="tax-data-element">₹31860</td>
-                                <td class="tax-data-element">₹31860</td>
-                                <td class="tax-data-element">₹63720</td>
-                            </tr>
-                        </tbody>
-                    </table>
                     <h3 style="padding-left: 10px; padding-top: 10px">
-                        Three Lakh Fifty Four Thousand Only
+                        {{billDetails.totalAmountInWords}}
                     </h3>
                 </div>
             </div>
             <div class="declaration">
                 <h3><u>Declaration</u></h3>
-                <p>
-                    Note: GST invoice will be issued at the time of payment
-                    receipt.
-                </p>
+                {{#each billDetails.declaration as |declaration|}}
+                    <p>
+                        {{declaration}}
+                    </p>
+                {{/each}}
             </div>
             <div class="bank-details">
                 <div style="padding-left: 10px">
                     <h3>Bank Details</h3>
                     <h4>
                         Bank Name:
-                        <span style="font-weight: 400">HDFC Bank</span>
+                        <span style="font-weight: 400">{{plant.bankDetails.bankName}}</span>
                     </h4>
                     <h4>
                         Branch Address:
-                        <span style="font-weight: 400"
-                            >Neelam Chowk, Bhiwadi.</span
-                        >
+                        <span style="font-weight: 400">{{plant.bankDetails.branchAddress}}</span>
                     </h4>
                     <h4>
                         Account Number:
-                        <span style="font-weight: 400">50200039429500</span>
+                        <span style="font-weight: 400">{{plant.bankDetails.accountNo}}</span>
                     </h4>
                     <h4>
                         IFSC Code:
-                        <span style="font-weight: 400">HDFC0000281</span>
+                        <span style="font-weight: 400">{{plant.bankDetails.ifsc}}</span>
                     </h4>
                 </div>
             </div>
@@ -322,14 +260,11 @@
                 <div class="tAndc">
                     <h3><u>Terms and Conditions</u></h3>
                     <ol>
-                        <li>Goods once sold will not be taken back.</li>
-                        <li>
-                            Interest @24% p.a. will be charged after 30 days of
-                            the due date.
-                        </li>
-                        <li>
-                            All disputes are subject to Bhiwadi Jurisdiction.
-                        </li>
+                        <li>Payment shuld be made on or before {{billDetails.lastDate}}</li>
+                        <li>Action will be initiated for default in payments and Interest @{{billDetails.interestRate}}% p.a will be charged</li>
+                        {{#each billDetails.tAndC as |terms|}}
+                            <li>{{terms}}</li>
+                        {{/each}}
                     </ol>
                 </div>
                 <div class="signatory">
@@ -338,7 +273,7 @@
                     </div>
                     <div class="plant-signature">
                         <h3 style="margin-bottom: 4rem; line-height: 1;">
-                            for Bhiwadi Jal Pradushan Nivaran Asso.
+                            for {{plant.name}}
                         </h3>
                         <h3>Authorised Signatory</h3>
                     </div>

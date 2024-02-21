@@ -40,6 +40,14 @@ module.exports.testPdf = async (req, res) => {
     }
 }
 
+module.exports.generateBillReceipt = async (req,res) => {
+    const useruid = req.userData.uid
+    const billid = req.params.billid
+
+    
+
+}
+
 // const pdf = require('pdf-creator-node');
 // const fs = require('fs');
 // const path = require('path');
