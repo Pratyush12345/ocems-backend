@@ -5,6 +5,11 @@ const bucket = storage.bucket()
 const fs = require('fs')
 const { getMessaging } = require('firebase-admin/messaging');
 const db = firebase.database()
+const puppeteer = require('puppeteer');
+const fsEx = require('fs-extra');
+const path = require('path');
+const hbs = require('handlebars');
+const moment = require('moment')
 
 module.exports.getBills = (req,res) => {
     const adminuid = req.userData.uid
@@ -570,3 +575,229 @@ module.exports.deleteCopy = (req,res) => {
         })
     })
 }
+
+const compile = async function (templateName, data) {
+    const filePath = path.join(process.cwd(), './templates', `${templateName}.hbs`)
+    const html = await fsEx.readFile(filePath, 'utf-8')
+    return hbs.compile(html)(data)
+}
+
+hbs.registerHelper('dateFormat', (value, format) => {
+    return moment(value).format(format)
+})
+
+const numberToWordsIndian = (number) => {
+    if (number === 0) return "Zero";
+
+    let words = "";
+
+    const crore = Math.floor(number / 10000000);
+    number -= crore * 10000000;
+    const lakh = Math.floor(number / 100000);
+    number -= lakh * 100000;
+    const thousand = Math.floor(number / 1000);
+    number -= thousand * 1000;
+    const hundred = Math.floor(number / 100);
+    number -= hundred * 100;
+
+    if (crore > 0) words += `${convertTensAndBelow(crore)} Crore `;
+    if (lakh > 0) words += `${convertTensAndBelow(lakh)} Lakh `;
+    if (thousand > 0) words += `${convertTensAndBelow(thousand)} Thousand `;
+    if (hundred > 0) words += `${convertTensAndBelow(hundred)} Hundred `;
+
+    if (number > 0) words += convertTensAndBelow(number);
+
+    return words.trim();
+}
+
+const convertTensAndBelow = (number) => {
+    const belowTwenty = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+    if (number < 20) return belowTwenty[number];
+    const tenUnits = Math.floor(number / 10);
+    const remainder = number % 10;
+
+    return tens[tenUnits] + (remainder ? " " + belowTwenty[remainder] : "");
+}
+
+module.exports.downloadBill = async (req,res) => {
+    const billid = req.query.billid
+    const plantID = req.userData.plantID
+    const roleName = req.userData.role
+    let industryid = req.query.industryid
+
+    if(roleName === 'industry'){
+        industryid = req.userData.industryid
+    } else if(!industryid) {
+        return res.status(400).json({
+            message: "Please provide industryid"
+        })
+    }
+
+    if(!billid){
+        return res.status(200).json({
+            message: "Please provide billid"
+        })
+    }
+
+    try {
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry not found"
+            })
+        }
+
+        const bill = await firestore.collection(`plants/${plantID}/industryUsers/${industryid}/bills`).doc(billid).get()
+        if(!bill.exists){
+            return res.status(404).json({
+                message: "Bill not found"
+            })
+        }
+        const plant = await firestore.collection('plants').doc(plantID).get()
+        
+        const plantData = plant.data()
+        const industryData = industry.data()
+        const billData = bill.data()
+        const goods = billData.goods
+        let tAndC = {}
+        let declaration = {}
+        const goodsWithCharges = []
+
+        let totalAmount = 0
+
+        for (let i = 0; i < goods.length; i++) {
+            const good = goods[i];
+            
+            const masterCopyID = good.masterCopyID
+            const masterCopy = await firestore.collection(`plants/${plantID}/billMasterCopy`).doc(masterCopyID).get()
+
+            if(!masterCopy.exists){
+                return res.status(404).json({
+                    message: `Master copy not found for good ${i+1}`
+                })
+            }
+
+            const masterCopyData = masterCopy.data()
+            
+            if(i === 0){
+                tAndC = masterCopyData.termsAndCondn
+                declaration = masterCopyData.declaration
+            }
+
+            const qty = good.qty
+            const price = masterCopyData.price*qty
+            const cgstRate = masterCopyData.cgstRate
+            const sgstRate = masterCopyData.sgstRate
+            const cgstAmount = (price*cgstRate)/100
+            const sgstAmount = (price*sgstRate)/100
+            const amount = price+cgstAmount+sgstAmount
+            totalAmount += amount
+
+            goodsWithCharges.push({
+                index: i+1,
+                hsn: masterCopyData.HSN_SAC_code,
+                description: `${masterCopyData.description} (${good.starting}-${good.ending})`,
+                qty: qty,
+                unit: masterCopyData.unit,
+                price: price,
+                cgstRate: cgstRate + "%",
+                cgstAmount: cgstAmount,
+                sgstRate: sgstRate + "%",
+                sgstAmount: sgstAmount,
+                amount: amount
+            })
+        }
+        let billDate = new Date(billData.dateCreated)
+        let lastDate = new Date(billData.requiredFields.lastDate)
+        billDate = `${billDate.getDate()}/${billDate.getMonth()+1}/${billDate.getFullYear()}`
+        lastDate = `${lastDate.getDate()}/${lastDate.getMonth()+1}/${lastDate.getFullYear()}`
+
+        const data = {
+            plant: {
+                gst: plantData.gstin,
+                name: plantData.plantName,
+                address: plantData.plantAddress,
+                cin: plantData.cin,
+                pan: plantData.pan,
+                contact: plantData.phoneNo,
+                email: plantData.email,
+                bankDetails: {
+                    bankName: plantData.bankName,
+                    branchAddress: plantData.bankBranchAddress,
+                    accountNo: plantData.bankAccountNo,
+                    ifsc: plantData.bankIFSCCode
+                }
+            },
+            industry: {
+                name: industryData.companyName,
+                address: industryData.address,
+                gst: industryData.gstin ? industryData.gstin : "",
+            },
+            billDetails: {
+                quotationNo: billData.quotationNo,
+                date: billDate,
+                tAndC: tAndC,
+                declaration: declaration,
+                goods: goodsWithCharges,
+                totalAmount: totalAmount,
+                totalAmountInWords: numberToWordsIndian(totalAmount) + " Rupees Only",
+                interestRate: billData.requiredFields.interestRate,
+                lastDate: lastDate
+            }
+        }
+
+        const content = await compile('bill', data); 
+
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.setContent(content);
+        await page.emulateMediaType('screen');
+
+        // Generate PDF from page content
+        const pdfBuffer = await page.pdf({
+            format: "A4",
+            printBackground: true
+        });
+
+        // Set headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=bill.pdf');
+
+        // Send the PDF buffer
+        res.send(pdfBuffer);
+
+        await browser.close();
+        
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
+}
+
+/*
+
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    const content = await compile('bill', data)
+
+    const filepath = `./bills/${Date.now()}-${industryid}-${billid}-bill.pdf`
+    await page.setContent(content)
+    await page.emulateMediaType('screen')
+    await page.pdf({
+        path: filepath,
+        format: "A4",
+        printBackground: true
+    });
+    await browser.close();
+
+    fs.unlinkSync(filepath)
+
+        
+
+*/

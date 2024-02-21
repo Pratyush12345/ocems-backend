@@ -88,7 +88,8 @@ module.exports.signUp = async (req, res) => {
                 // set custom user claims
                 await firebase.auth().setCustomUserClaims(operator.uid, {
                     role: "operator",
-                    accessLevel: 3
+                    accessLevel: 3,
+                    plantID: user.get('plantID')
                 })
 
                 return operator

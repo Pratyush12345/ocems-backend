@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bill</title>
+        <style>
+            .main-body {
+                margin: 10px;
+                border: 1px solid black;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: start;
+                word-wrap: break-word;
+                line-height: 0.5;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: smaller;
+            }
+
+            .header {
+                width: 100%;
+            }
+
+            .gst-head {
+                padding-left: 10px;
+                text-align: start;
+            }
+
+            .plant-details {
+                text-align: center;
+                border-bottom: 1px solid black;
+            }
+
+            .industry {
+                width: 100%;
+                border-bottom: 1px solid black;
+                display: flex;
+            }
+
+            .industry-details {
+                padding: 10px;
+                width: 50%;
+                border-right: 1px solid black;
+            }
+
+            .bill-details {
+                padding: 10px;
+                width: 50%;
+            }
+
+            .goods {
+                width: 100%;
+            }
+
+            .goods-table {
+                width: 100%;
+                border-collapse: collapse;
+                border-bottom: 1px solid black;
+                line-height: 1;
+            }
+
+            .theadingElement {
+                border-right: 1px solid black;
+                padding: 15px 1.5px;
+            }
+
+            .head-row {
+                border-bottom: 1px solid black;
+            }
+
+            tbody {
+                text-align: start;
+            }
+
+            .tdataElement {
+                padding: 2px 5px;
+                border-right: 1px solid black;
+            }
+
+            .calculations {
+                width: 100%;
+                border-bottom: 1px solid black;
+            }
+
+            .tax-table {
+                width: 50%;
+                border-collapse: collapse;
+                line-height: 1;
+            }
+
+            .tax-head-element {
+                padding: 10px;
+            }
+
+            .tax-data-element {
+                padding: 5px;
+            }
+
+            .declaration {
+                width: 100%;
+                border-bottom: 1px solid black;
+                text-align: center;
+            }
+
+            .bank-details {
+                width: 100%;
+                border-bottom: 1px solid black;
+                text-align: start;
+                line-height: 10%;
+            }
+
+            .footer {
+                width: 100%;
+                display: inline-flex;
+            }
+
+            .tAndc {
+                padding: 0 10px;
+                width: 50%;
+                border-right: 1px solid black;
+                line-height: 100%;
+            }
+
+            .signatory {
+                width: 50%;
+            }
+
+            .receiver {
+                padding-left: 10px;
+                height: 30%;
+                display: flex;
+                border-bottom: 1px solid black;
+            }
+
+            .plant-signature {
+                height: 70%;
+                text-align: end;
+                padding-right: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="main-body">
+            <div class="header">
+                <h3 class="gst-head">
+                    GSTIN:
+                    <span style="font-weight: 400">{{plant.gst}}</span>
+                </h3>
+                <div class="plant-details">
+                    <h3><u>Proforma Details</u></h3>
+                    <h1>{{plant.name}}</h1>
+                    <p>
+                        {{plant.address}}
+                    </p>
+                    <p>CIN: {{plant.cin}}; PAN: {{plant.pan}}</p>
+                    <p>Tel.: {{plant.contact}}; Email: {{plant.email}}</p>
+                </div>
+            </div>
+            <div class="industry">
+                <div class="industry-details">
+                    <h3>Party Details:</h3>
+                    <p>{{industry.name}}</p>
+                    <p>{{industry.address}}</p>
+                    <p style="padding-top: 40px">GSTIN/UIN: {{industry.gst}}</p>
+                </div>
+                <div class="bill-details">
+                    <h4>
+                        Quotation Number:
+                        <span style="font-weight: 400">{{billDetails.quotationNo}}</span>
+                    </h4>
+                    <h4>
+                        Dated:
+                        <span style="font-weight: 400">{{billDetails.date}}</span>
+                    </h4>
+                </div>
+            </div>
+            <div class="goods">
+                <table class="goods-table">
+                    <thead>
+                        <tr
+                            class="head-row"
+                            style="border-bottom: 1px solid black"
+                        >
+                            <th class="theadingElement">S. No.</th>
+                            <th class="theadingElement">Description of Goods</th>
+                            <th class="theadingElement">HSN/SAC</th>
+                            <th class="theadingElement">Quantity</th>
+                            <th class="theadingElement">Unit</th>
+                            <th class="theadingElement">Price</th>
+                            <th class="theadingElement">CGST Rate</th>
+                            <th class="theadingElement">CGST Amount</th>
+                            <th class="theadingElement">SGST Rate</th>
+                            <th class="theadingElement">SGST Amount</th>
+                            <th class="">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#each billDetails.goods as |good|}}
+                            <tr>
+                                <td class="tdataElement">{{good.index}}</td>
+                                <td class="tdataElement">{{good.description}}</td>
+                                <td class="tdataElement">{{good.hsn}}</td>
+                                <td class="tdataElement">{{good.qty}}</td>
+                                <td class="tdataElement">{{good.unit}}</td>
+                                <td class="tdataElement">₹{{good.price}}</td>
+                                <td class="tdataElement">{{good.cgstRate}}</td>
+                                <td class="tdataElement">₹{{good.cgstAmount}}</td>
+                                <td class="tdataElement">{{good.sgstRate}}</td>
+                                <td class="tdataElement">₹{{good.sgstAmount}}</td>
+                                <td class="">₹{{good.amount}}</td>
+                            </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            <div class="calculations">
+                <div style="text-align: end">
+                    <h3 style="padding-right: 10px">
+                        Total Amount:
+                        <span style="font-weight: 400">₹{{billDetails.totalAmount}}</span>
+                    </h3>
+                </div>
+                <div class="taxes">
+                    <h3 style="padding-left: 10px; padding-top: 10px">
+                        {{billDetails.totalAmountInWords}}
+                    </h3>
+                </div>
+            </div>
+            <div class="declaration">
+                <h3><u>Declaration</u></h3>
+                {{#each billDetails.declaration as |declaration|}}
+                    <p>
+                        {{declaration}}
+                    </p>
+                {{/each}}
+            </div>
+            <div class="bank-details">
+                <div style="padding-left: 10px">
+                    <h3>Bank Details</h3>
+                    <h4>
+                        Bank Name:
+                        <span style="font-weight: 400">{{plant.bankDetails.bankName}}</span>
+                    </h4>
+                    <h4>
+                        Branch Address:
+                        <span style="font-weight: 400">{{plant.bankDetails.branchAddress}}</span>
+                    </h4>
+                    <h4>
+                        Account Number:
+                        <span style="font-weight: 400">{{plant.bankDetails.accountNo}}</span>
+                    </h4>
+                    <h4>
+                        IFSC Code:
+                        <span style="font-weight: 400">{{plant.bankDetails.ifsc}}</span>
+                    </h4>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="tAndc">
+                    <h3><u>Terms and Conditions</u></h3>
+                    <ol>
+                        <li>Payment shuld be made on or before {{billDetails.lastDate}}</li>
+                        <li>Action will be initiated for default in payments and Interest @{{billDetails.interestRate}}% p.a will be charged</li>
+                        {{#each billDetails.tAndC as |terms|}}
+                            <li>{{terms}}</li>
+                        {{/each}}
+                    </ol>
+                </div>
+                <div class="signatory">
+                    <div class="receiver">
+                        <h3>Receiver's Signature:</h3>
+                    </div>
+                    <div class="plant-signature">
+                        <h3 style="margin-bottom: 4rem; line-height: 1;">
+                            for {{plant.name}}
+                        </h3>
+                        <h3>Authorised Signatory</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
