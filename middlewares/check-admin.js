@@ -2,7 +2,7 @@ const firebase = require('../config/firebase')
 
 module.exports = (req, res, next) => {
     const adminuid = req.userData.uid
-
+                                                                                                     
     firebase.auth().getUser(adminuid)
     .then(async admin => {
         if(admin.customClaims.accessLevel !== 1){
