@@ -1,33 +1,16 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
 
-module.exports = (access, routeType, isIndustryAccessAllowed = false) => {
+module.exports = (access, routeType, isIndustryAccessAllowed, isPlantAccessAllowed) => {
     return async (req, res, next) => {
         try {
             const useruid = req.userData.uid
             const user = await firestore.collection('users').doc(useruid).get()
             const roleName = req.userData.role
 
-            if(roleName === 'super admin'){
-                const plantID = req.body.plantID
-                
-                if(!plantID){
-                    return res.status(400).json({
-                        message: "Please provide a plantID"
-                    })
-                }
-                
-                const plant = await firestore.collection('plants').doc(plantID).get()
-                
-                if(!plant.exists){
-                    return res.status(404).json({
-                        message: `Plant ${plantID} not found`
-                    })
-                }
-                
-                req.userData.plantID = plantID
-                return next()
-            } else if (roleName === 'admin'){
+            // TODO: Add check for plant access
+
+            if(roleName === 'super admin' || roleName === 'admin'){
                 return next()
             } else if (roleName === 'officer' || roleName === 'operator'){
                 const departmentAccess = user.get('departmentAccess')

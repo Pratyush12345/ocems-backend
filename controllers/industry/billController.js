@@ -11,28 +11,21 @@ const path = require('path');
 const hbs = require('handlebars');
 const moment = require('moment')
 
-module.exports.getBills = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getBills = async (req,res) => {
     const billid = req.query.bill
+    const roleName = req.userData.role
+    const plantID = req.userData.plantID
     let industryid = req.query.industryid
+    
+    if(roleName === 'industry'){
+        industryid = req.userData.industryid
+    } else if(!industryid) {
+        return res.status(400).json({
+            message: "Please provide industryid"
+        })
+    }
 
-    firebase.auth().getUser(adminuid)
-    .then(async admin => {
-        let plantID
-        if(admin.customClaims.role === "admin"){
-            if(!industryid){
-                return res.status(400).json({
-                    message: "Please provide industryid"
-                })
-            }
-
-            const admin = await firestore.collection('users').doc(adminuid).get()
-            plantID = admin.get('plantID')
-        } else {
-            plantID = admin.customClaims.plantID
-            industryid = admin.customClaims.industryid
-        }
-
+    try {
         const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
 
         if(!industry.exists){
@@ -72,17 +65,47 @@ module.exports.getBills = (req,res) => {
         return res.status(200).json({
             bills: billsArray
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
 }
 
 module.exports.getBillApprovalRequests = async (req,res) => {
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
+
+    try {
+        const requests = await firestore.collection(`plants/${plantID}/billAprrovalRequests`).get()
+        let requestsArray = []
+
+        const promise = requests.docs.map(async request => {
+            const data = request.data()
+            const industryid = data.industryid
+            const billid = data.billid
+
+            const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).get()
+            if(bill.exists){
+                requestsArray.push({
+                    id: bill.id,
+                    industryid: industryid,
+                    data: bill.data(),
+                })
+            }
+        })
+
+        await Promise.all(promise)
+
+        return res.status(200).json({
+            requests: requestsArray
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -159,22 +182,9 @@ module.exports.createBill = async (req, res) => {
     const lastDate = req.body.lastDate
     const industryid = req.params.industryid
     const amount = req.body.amount
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform billing operations"
-            })
-        }
-
+    try {
         // goods validation
         if(goods===undefined || goods.length<1){
             return res.status(400).json({
@@ -183,7 +193,6 @@ module.exports.createBill = async (req, res) => {
         }
 
         const date = new Date()
-        const plantID = admin.get('plantID')
         
         const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
         if(!industry.exists){
@@ -356,30 +365,26 @@ module.exports.createBill = async (req, res) => {
             token: fcm_token
         }
 
-        const result = await getMessaging().send(message)
+        await getMessaging().send(message)
         
         return res.status(200).json({
             message: "Bill created successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
 }
 
-module.exports.uploadPaymentReciept = (req,res) => {
+module.exports.uploadPaymentReciept = async (req,res) => {
     const billid = req.body.billid
-    const industryuid = req.userData.uid
     const filePath = req.file.path
+    const plantID = req.userData.plantID
+    const industrydocid = req.userData.industryid
 
-    firebase.auth().getUser(industryuid)
-    .then(async industry => {
-        const plantID = industry.customClaims.plantID
-        const industrydocid = industry.customClaims.industryid
-
+    try {
         const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industrydocid).collection('bills').doc(billid).get()
         if(!bill.exists){
             return res.status(404).json({
@@ -417,7 +422,7 @@ module.exports.uploadPaymentReciept = (req,res) => {
         // send notification to all the users who have industry-read access or industry-write access or both
         const users = await firestore.collection('users').where('plantID', '==', plantID).get()
 
-        const requiredAccess = ['Industry-Read', 'Industry-Write']
+        const requiredAccess = ['Industry-Read', 'Industry-Write', 'Bill-Read', 'Bill-Write']
 
         const promise = users.docs.map(async user => {
             const data = user.data()
@@ -445,20 +450,19 @@ module.exports.uploadPaymentReciept = (req,res) => {
         return res.status(200).json({
             message: "Reciept uploaded successfully"
         })
-    })
-    .catch(err => {
+    } catch (error) {
         fs.unlinkSync(filePath)
-        console.log(err);
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
 }
 
-module.exports.processBill = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.processBill = async (req,res) => {
     const requestId = req.params.requestid
     const decision = req.params.decision
+    const plantID = req.userData.plantID
 
     if(decision!=="approve" && decision!=="reject"){
         return res.status(400).json({
@@ -466,22 +470,7 @@ module.exports.processBill = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform this operation"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         const request = await firestore.collection(`plants/${plantID}/billAprrovalRequests`).doc(requestId).get()
         if(!request.exists){
             return res.status(404).json({
@@ -508,19 +497,55 @@ module.exports.processBill = (req,res) => {
         return res.status(200).json({
             message: "Bill processed successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
 }
 
-module.exports.deleteCopy = (req,res) => {
+module.exports.deleteCopy = async (req,res) => {
     const industryid = req.params.industryid
     const billid = req.params.billid
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
+
+    try {
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry Not found"
+            })
+        }
+        
+        const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).get()
+
+        if(!bill.exists){
+            return res.status(404).json({
+                message: "Bill not found"
+            })
+        }
+
+        // delete the reciept from firebase storage
+        const filePath = bill.get('paymentRecieptPath')
+
+        if(filePath){
+            await bucket.file(filePath).delete()
+        }
+
+        // delete bill
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).delete()
+        
+        return res.status(200).json({
+            message: "Bill successfully deleted"
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -777,7 +802,6 @@ module.exports.downloadBill = async (req,res) => {
             error: error
         })
     }
-
 }
 
 /*

@@ -11,9 +11,16 @@ const departmentAccess = {
     write: ['Bill-Write']
 }
 
-const GETAccessCheck = () => {
+// TODO: Add check for plant access
+const GETAccessCheck = (isIndustryAccessAllowed = false, isPlantAccessAllowed = true) => {
     return (req, res, next) => {
-        checkAccess(departmentAccess, 'GET', true)(req, res, next);
+        checkAccess(departmentAccess, 'GET', isIndustryAccessAllowed, isPlantAccessAllowed)(req, res, next);
+    };
+}
+
+const RESTAccessCheck = (isIndustryAccessAllowed = false, isPlantAccessAllowed = true) => {
+    return (req, res, next) => {
+        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed)(req, res, next);
     };
 }
 
@@ -30,15 +37,15 @@ const billRecieptStorage = multer({
 
 router.use('/master', require('./billMaster'))
 
-router.get('/get', checkAuth, billController.getBills)
-router.get('/requests', checkAuth, billController.getBillApprovalRequests)
-router.get('/download', checkAuth, extractUser, GETAccessCheck(), billController.downloadBill)
+router.get('/get', checkAuth, extractUser, GETAccessCheck(true), billController.getBills)
+router.get('/requests', checkAuth, extractUser, GETAccessCheck(), billController.getBillApprovalRequests)
+router.get('/download', checkAuth, extractUser, GETAccessCheck(true), billController.downloadBill)
 
-router.post('/create/:industryid', checkAuth, billController.createBill)
-router.post('/upload/reciept', checkAuth, checkIndustry, billRecieptStorage, billController.uploadPaymentReciept)
+router.post('/create/:industryid', checkAuth, extractUser, RESTAccessCheck(), billController.createBill)
+router.post('/upload/reciept', checkAuth, extractUser, RESTAccessCheck(true), billRecieptStorage, billController.uploadPaymentReciept)
 
-router.patch('/:decision/:requestid', checkAuth, billController.processBill)
+router.patch('/:decision/:requestid', checkAuth, extractUser, RESTAccessCheck(), billController.processBill)
 
-router.delete('/delete/:industryid/:billid', checkAuth, billController.deleteCopy)
+router.delete('/delete/:industryid/:billid', checkAuth, extractUser, RESTAccessCheck(), billController.deleteCopy)
 
 module.exports = router
