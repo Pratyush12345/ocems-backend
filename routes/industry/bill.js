@@ -11,6 +11,12 @@ const departmentAccess = {
     write: ['Bill-Write']
 }
 
+const GETAccessCheck = () => {
+    return (req, res, next) => {
+        checkAccess(departmentAccess, 'GET', true)(req, res, next);
+    };
+}
+
 const billRecieptStorage = multer({
     storage: multer.diskStorage({
         destination: (req,file,cb) => {
@@ -26,7 +32,7 @@ router.use('/master', require('./billMaster'))
 
 router.get('/get', checkAuth, billController.getBills)
 router.get('/requests', checkAuth, billController.getBillApprovalRequests)
-router.get('/download', checkAuth, extractUser, checkAccess(departmentAccess, 'GET', true), billController.downloadBill)
+router.get('/download', checkAuth, extractUser, GETAccessCheck(), billController.downloadBill)
 
 router.post('/create/:industryid', checkAuth, billController.createBill)
 router.post('/upload/reciept', checkAuth, checkIndustry, billRecieptStorage, billController.uploadPaymentReciept)
