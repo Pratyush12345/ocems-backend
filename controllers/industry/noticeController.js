@@ -14,45 +14,32 @@ const { getMessaging } = require('firebase-admin/messaging');
  *      1. Get all notices
  *      2. Get notice by noticeid
  */
-module.exports.getNotices = (req,res) => {
-    const adminuid = req.userData.uid
-    let industryid = req.query.industryid
+module.exports.getNotices = async (req,res) => {
     const noticeid = req.query.noticeid
+    const plantID = req.userData.plantID
+    const roleName = req.userData.role
+    let industryid = req.query.industryid
 
-    if(industryid && noticeid){
+    if(roleName === 'industry'){
+        if(industryid){
+            return res.status(400).json({
+                message: "Industryid not allowed"
+            })
+        }
+        industryid = req.userData.industryid
+    } else if(industryid && noticeid){
         return res.status(400).json({
             message: "Only one of industryid or noticeid is allowed"
         })
     }
 
-    firebase.auth().getUser(adminuid)
-    .then(async admin => {
-        let plantID
-        const role = admin.customClaims.role
-
-        if(role === 'industry'){
-            if(industryid){
-                return res.status(400).json({
-                    message: "industryid is not allowed for industry role"
-                })
-            }
-            plantID = admin.customClaims.plantID
-            industryid = admin.customClaims.industryid
-        } else if (role === 'admin'){
-            const adminData = await firestore.collection('users').doc(adminuid).get()
-            plantID = adminData.get('plantID')
-        } else {
-            return res.status(401).json({
-                message: "Unauthorized Access"
-            })
-        }
-
+    try {
         // Get all notices
         let query = firestore.collection(`plants/${plantID}/notices`)
         if(industryid){
             query = query.where('industries', 'array-contains', industryid)
         }
-        if(role === "admin" && noticeid){
+        if(roleName !== "industry" && noticeid){
             query = query.doc(noticeid)
         }
         let snapshot = await query.get()
@@ -69,28 +56,27 @@ module.exports.getNotices = (req,res) => {
             })
         })
         
-        if(role === 'industry' && noticeid){
+        if(roleName === 'industry' && noticeid){
             notices = notices.filter(notice => notice.id === noticeid)
         }
 
         return res.status(200).json({
             notices: notices
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
 
 }
 
-module.exports.createNotice = (req,res) => {
+module.exports.createNotice = async (req,res) => {
     const industries = JSON.parse(req.body.industries)
     const description = req.body.description
     const title = req.body.title
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
     const files = req.files
     const notices = []
 
@@ -102,16 +88,7 @@ module.exports.createNotice = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         // check if all industries exist
         for (let i = 0; i < industries.length; i++) {
             const industryid = industries[i];
@@ -197,8 +174,7 @@ module.exports.createNotice = (req,res) => {
         return res.status(201).json({
             message: "Notice successfully sent to industries"
         })
-    })
-    .catch(err => {
+    } catch (error) {
         // delete the files from the uploads folder
         for (let i = 0; i < notices.length; i++) {
             const notice = notices[i];
@@ -207,11 +183,12 @@ module.exports.createNotice = (req,res) => {
                 console.log("Error deleting files");
             })
         }
-        console.log(err);
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.updateIsNew = (req,res) => {
@@ -258,21 +235,11 @@ module.exports.updateIsNew = (req,res) => {
 
 }
 
-
-module.exports.deleteNotice = (req,res) => {
+module.exports.deleteNotice = async (req,res) => {
     const noticeid = req.params.noticeid
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         const notice = await firestore.collection(`plants/${plantID}/notices`).doc(noticeid).get()
         if(!notice.exists){
             return res.status(404).json({
@@ -294,11 +261,11 @@ module.exports.deleteNotice = (req,res) => {
         return res.status(201).json({
             message: "Notice successfully deleted"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }

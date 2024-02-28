@@ -262,36 +262,21 @@ const sludgeAndProcessValidator = (sludge, process, instrumentArray, update) => 
     return null
 }
 
-module.exports.createSludge = (req,res) => {
-    const adminUid = req.userData.uid
+module.exports.createSludge = async (req,res) => {
+    const plantID = req.userData.plantID
     const sludge = req.body.sludge
     const process = req.body.process
 
     let instrumentArray = []
 
-    const sludgeAndProcessError = sludgeAndProcessValidator(sludge, process, instrumentArray)
-
-    if(sludgeAndProcessError){
-        return res.status(400).json({
-            message: sludgeAndProcessError
-        })
-    }
-
-    firestore.collection('users').doc(adminUid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "Admin doesn't exist"
+    try {
+        const sludgeAndProcessError = sludgeAndProcessValidator(sludge, process, instrumentArray)
+    
+        if(sludgeAndProcessError){
+            return res.status(400).json({
+                message: sludgeAndProcessError
             })
         }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can access this route"
-            })
-        }
-
-        const plantID = admin.get('plantID')
 
         if(instrumentArray.length > 0){
             const instrumentError = instrumentValidator(plantID, instrumentArray)
@@ -312,13 +297,13 @@ module.exports.createSludge = (req,res) => {
         return res.status(200).json({
             message: "Sludge created successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 const getLatestInstrumentData = async (plantID, instrumentId) => {
@@ -422,8 +407,8 @@ const sludgeCalculator = async (plantID, sludge, processArray) => {
     }
 }
 
-module.exports.getSludge = (req,res) => {
-    const adminUid = req.userData.uid
+module.exports.getSludge = async (req,res) => {
+    const plantID = req.userData.plantID
     const sludgeId = req.query.id
 
     if(!sludgeId){
@@ -432,22 +417,7 @@ module.exports.getSludge = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminUid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can access this route"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         const sludge = await firestore.collection(`plants/${plantID}/sludge`).doc(sludgeId).get()
         const process = await sludge.ref.collection('process').get()
 
@@ -466,17 +436,17 @@ module.exports.getSludge = (req,res) => {
             sludge: sludgeData,
             process: processArray
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.updateSludge = (req,res) => {
-    const adminUid = req.userData.uid
+module.exports.updateSludge = async (req,res) => {
+    const plantID = req.userData.plantID
     const sludgeId = req.query.id
     const sludge = req.body.sludge
     const process = req.body.process
@@ -491,22 +461,7 @@ module.exports.updateSludge = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminUid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can access this route"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         if(instrumentArray.length > 0){
             const instrumentError = instrumentValidator(plantID, instrumentArray)
             if(instrumentError){
@@ -540,11 +495,17 @@ module.exports.updateSludge = (req,res) => {
         return res.status(200).json({
             message: "Sludge updated successfully"
         })
-    })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
 }
 
-module.exports.deleteSludge = (req,res) => {
-    const adminUid = req.userData.uid
+module.exports.deleteSludge = async (req,res) => {
+    const plantID = req.userData.plantID
     const sludgeId = req.query.id
 
     if(!sludgeId){
@@ -552,23 +513,8 @@ module.exports.deleteSludge = (req,res) => {
             message: "Sludge id is required"
         })
     }
-
-    firestore.collection('users').doc(adminUid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can access this route"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    
+    try {
         const sludgeRef = firestore.collection(`plants/${plantID}/sludge`).doc(sludgeId)
         const process = await sludgeRef.collection('process').get()
         if(process.empty){
@@ -585,11 +531,11 @@ module.exports.deleteSludge = (req,res) => {
         return res.status(200).json({
             message: "Sludge deleted successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }

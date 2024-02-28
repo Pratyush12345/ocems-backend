@@ -44,62 +44,64 @@ module.exports.signUp = async (req, res) => {
     })
 }
 
-module.exports.getSuperAdmin = (req,res) => {
+module.exports.getSuperAdmin = async (req,res) => {
     const superadminuid = req.userData.uid
 
-    firestore.collection('users').doc(superadminuid).get()
-    .then((superAdminDoc) => {
-        if (!superAdminDoc.exists) {
-            return res.status(404).json({
-                message: 'Super Admin not found',
-            });
-        }
+    try {
+        const user = await firestore.collection('users').doc(superadminuid).get()
 
-        const superAdminData = superAdminDoc.data();
+        const userData = user.data();
 
         return res.status(200).json({
-            admin: superAdminData,
+            admin: userData,
         });
-    })
-    .catch((error) => {
-        console.error('Error getting super admin:', error);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            message: 'Internal Server Error',
-        });
-    });
+            error: error
+        })
+    }
+
 }
 
-module.exports.updateSuperAdmin = (req,res) => {
+module.exports.updateSuperAdmin = async (req,res) => {
     const superadminuid = req.userData.uid
     const updatedData = req.body.updateData
 
-    firestore.collection('users').doc(superadminuid).update(updatedData)
-    .then(() => {
+    try {
+        const user = await firestore.collection('users').doc(superadminuid).get()
+
+        await user.ref.update(updatedData)
+
         return res.status(200).json({
             message: 'Super Admin updated successfully',
         });
-    })
-    .catch((error) => {
-        console.error('Error updating user:', error);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            message: 'Internal Server Error',
-        });
-    });
+            error: error
+        })
+    }
+
 }
 
-module.exports.deleteSuperAdmin = (req,res) => {
+module.exports.deleteSuperAdmin = async (req,res) => {
     const superadminuid = req.userData.uid
 
-    firestore.collection('users').doc(superadminuid).delete()
-    .then(() => {
+    try {
+        const user = await firestore.collection('users').doc(superadminuid).get()
+
+        await user.ref.delete()
+
         return res.status(200).json({
             message: 'Super Admin Deleted successfully',
         });
-    })
-    .catch((error) => {
-        console.error('Error updating user:', error);
+
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            message: 'Internal Server Error',
-        });
-    });
+            error: error
+        })
+    }
+
 }

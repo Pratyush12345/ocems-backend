@@ -26,7 +26,13 @@ app.use((req,res,next) => {
 // require('./config/modbus')
 require('./config/cron-job')
 
-app.use('/', require('./routes/home'));
+app.use('/public', require('./routes/public'))
+
+app.use('/', 
+    require('./middlewares/check-auth'), 
+    require('./middlewares/extract-user'), 
+    require('./routes/home')
+);
 
 app.listen(process.env.PORT || 3001, () => {
     console.log(`Server started`);

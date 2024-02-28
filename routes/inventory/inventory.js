@@ -1,16 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const checkAuth = require('../../middlewares/check-auth')
 const inventoryController = require('../../controllers/inventory/inventoryController')
+const checkAccess = require('../../middlewares/check-access')
+const departmentAccess = {
+    read: ['Inventory-Read', 'Inventory-Write'],
+    write: ['Inventory-Write']
+}
 
-router.get('/', checkAuth, inventoryController.getItems)
+const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
+    return (req, res, next) => {
+        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
+    };
+}
 
-router.post('/add', checkAuth, inventoryController.addItem)
+router.get('/', accessCheck(), inventoryController.getItems)
 
-router.patch('/use', checkAuth, inventoryController.useItem)
-router.patch('/update', checkAuth, inventoryController.updateItem)
-router.patch('/restock', checkAuth, inventoryController.restockItem)
+router.post('/add', accessCheck(), inventoryController.addItem)
 
-router.delete('/delete/:itemid', checkAuth, inventoryController.deleteItem)
+router.patch('/use', accessCheck(), inventoryController.useItem)
+router.patch('/update', accessCheck(), inventoryController.updateItem)
+router.patch('/restock', accessCheck(), inventoryController.restockItem)
+
+router.delete('/delete/:itemid', accessCheck(), inventoryController.deleteItem)
 
 module.exports = router;

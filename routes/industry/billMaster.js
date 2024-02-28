@@ -1,12 +1,23 @@
 const express = require('express')
 const router = express.Router()
 const billMasterController = require('../../controllers/industry/billMasterController')
-const checkAuth = require('../../middlewares/check-auth')
+const checkAccess = require('../../middlewares/check-access')
 
-router.get('/types', checkAuth, billMasterController.getMasterCopiesTypes)
-router.get('/', checkAuth, billMasterController.getMasterCopies)
-router.post('/create', checkAuth, billMasterController.createCopy)
-router.patch('/update', checkAuth, billMasterController.updateCopy)
-router.delete('/delete/:id', checkAuth, billMasterController.deleteCopy)
+const departmentAccess = {
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
+    write: ['Bill-Write']
+}
+
+const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
+    return (req, res, next) => {
+        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
+    };
+}
+
+router.get('/types', accessCheck(), billMasterController.getMasterCopiesTypes)
+router.get('/', accessCheck(), billMasterController.getMasterCopies)
+router.post('/create', accessCheck(), billMasterController.createCopy)
+router.patch('/update', accessCheck(), billMasterController.updateCopy)
+router.delete('/delete/:id', accessCheck(),billMasterController.deleteCopy)
 
 module.exports = router

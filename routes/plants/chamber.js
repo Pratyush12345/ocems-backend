@@ -1,12 +1,22 @@
 const express = require('express')
 const router = express.Router()
-const checkAuth = require('../../middlewares/check-auth')
 const chamberController = require('../../controllers/plant/chamberController')
+const checkAccess = require('../../middlewares/check-access')
+const departmentAccess = {
+    read: ['Process-Read', 'Process-Write'],
+    write: ['Process-Write']
+}
 
-router.get('/', chamberController.getChamber)
-router.post('/add', chamberController.createChamber)
-router.patch('/update', chamberController.updateChamber)
-router.patch('/update/position', chamberController.swapChamberPosition)
-router.delete('/delete/:chamberID', chamberController.deleteChamber)
+const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
+    return (req, res, next) => {
+        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
+    };
+}
+
+router.get('/', accessCheck(), chamberController.getChamber)
+router.post('/add', accessCheck(), chamberController.createChamber)
+router.patch('/update', accessCheck(), chamberController.updateChamber)
+router.patch('/update/position', accessCheck(), chamberController.swapChamberPosition)
+router.delete('/delete/:chamberID', accessCheck(), chamberController.deleteChamber)
 
 module.exports = router

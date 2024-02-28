@@ -36,7 +36,7 @@ const bankBooleanReqFields = [
     'tncaccepted'
 ]
 
-module.exports.createLinkedAccount = (req,res) => {
+module.exports.createLinkedAccount = async (req,res) => {
     const email = req.body.email
     const phone = req.body.phone
     const legal_business_name = req.body.legal_business_name
@@ -52,9 +52,7 @@ module.exports.createLinkedAccount = (req,res) => {
     const pan = req.body.pan
     const gst = req.body.gst
     // const notes = req.body.notes
-    const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const plantID = req.userData.plantID
 
     for (let i = 0; i < linkedAcReqFields.length; i++) {
         const element = linkedAcReqFields[i];
@@ -144,20 +142,7 @@ module.exports.createLinkedAccount = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(superadminuid).get()
-    .then(async superadmin => {
-        if(!superadmin.exists) {
-            return res.status(400).json({
-                message: 'Superadmin does not exist'
-            })
-        }
-
-        if(superadmin.data().accessLevel !== 0) {
-            return res.status(400).json({
-                message: 'Only Superadmin can create a linked account'
-            })
-        }
-
+    try {
         const plant = await firestore.collection('plants').doc(plantID).get()
 
         if(!plant.exists) {
@@ -230,8 +215,7 @@ module.exports.createLinkedAccount = (req,res) => {
         return res.status(200).json({
             message: "Linked account created successfully"
         })
-    })
-    .catch(err => {
+    } catch (error) {
         if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
                 message: err.response.data
@@ -243,14 +227,13 @@ module.exports.createLinkedAccount = (req,res) => {
                 error: err
             })
         }
-    })
+    }
+
 }
 
-module.exports.createStakeholder = (req,res) => {
+module.exports.createStakeholder = async (req,res) => {
     const stakeholder = req.body.stakeholder
-    const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const plantID = req.userData.plantID
 
     if(!stakeholder) {
         return res.status(400).json({
@@ -334,13 +317,8 @@ module.exports.createStakeholder = (req,res) => {
         })
     }
 
-    firestore.collection('plants').doc(plantID).get()
-    .then(async plant => {
-        if(!plant.exists) {
-            return res.status(400).json({
-                message: 'Plant does not exist'
-            })
-        }
+    try {
+        const plant = await firestore.collection('plants').doc(plantID).get()
 
         const razorpayLACid = plant.data().razorpayAccountDetails.id
 
@@ -395,27 +373,18 @@ module.exports.createStakeholder = (req,res) => {
         return res.status(200).json({
             message: "Stakeholder created successfully"
         })
-    })
-    .catch(err => {
-        if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
-            return res.status(400).json({
-                message: err.response.data
-            })
-        }
-        else {
-            console.log(err);
-            return res.status(500).json({
-                error: err
-            })
-        }
-    })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
 }
 
-module.exports.acceptTnc = (req,res) => {
+module.exports.acceptTnc = async (req,res) => {
     const tncaccepted = req.body.tncaccepted
-    const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const plantID = req.userData.plantID
 
     // create a check for tncaccepted to be boolean
     if(typeof tncaccepted !== 'boolean') {
@@ -423,22 +392,8 @@ module.exports.acceptTnc = (req,res) => {
             message: 'tncaccepted must be a boolean'
         })
     }
-    
-    firestore.collection('users').doc(superadminuid).get()
-    .then(async superadmin => {
 
-        if(!superadmin.exists) {
-            return res.status(400).json({
-                message: 'Superadmin does not exist'
-            })
-        }
-
-        if(superadmin.data().accessLevel !== 0) {
-            return res.status(400).json({
-                message: 'Only Superadmin can accept TNC'
-            })
-        }
-
+    try {
         const plant = await firestore.collection('plants').doc(plantID).get()
 
         if(!plant.exists) {
@@ -502,8 +457,7 @@ module.exports.acceptTnc = (req,res) => {
                 message: 'TNC not accepted'
             })
         }
-    })
-    .catch(err => {
+    } catch (error) {
         if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
                 message: err.response.data.error.description,
@@ -516,19 +470,18 @@ module.exports.acceptTnc = (req,res) => {
                 error: err
             })
         }
-    })
+    }
+    
 }
 
-module.exports.addBankDetails = (req,res) => {
+module.exports.addBankDetails = async (req,res) => {
     const bankAccountNo = req.body.bankAccountNo
     const bankBranchAddress = req.body.bankBranchAddress
     const bankIFSCCode = req.body.bankIFSCCode
     const bankName = req.body.bankName
     const beneficiaryName = req.body.beneficiaryName
     const tncaccepted = req.body.tncaccepted
-    const plantID = req.body.plantID
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+    const plantID = req.userData.plantID
 
     for (let i = 0; i < bankDetailsReqFields.length; i++) {
         const element = bankDetailsReqFields[i];
@@ -591,22 +544,8 @@ module.exports.addBankDetails = (req,res) => {
             message: 'IFSC code must be 11 characters long'
         })
     }
-    
-    firestore.collection('users').doc(superadminuid).get()
-    .then(async superadmin => {
 
-        if(!superadmin.exists) {
-            return res.status(400).json({
-                message: 'Superadmin does not exist'
-            })
-        }
-
-        if(superadmin.data().accessLevel !== 0) {
-            return res.status(400).json({
-                message: 'Only Superadmin can add bank details'
-            })
-        }
-
+    try {
         const plant = await firestore.collection('plants').doc(plantID).get()
 
         if(!plant.exists) {
@@ -683,8 +622,7 @@ module.exports.addBankDetails = (req,res) => {
                 message: "Bank details added successfully"
             })
         }
-    })
-    .catch(err => {
+    } catch (error) {
         if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
                 message: err.response.data.error.description,
@@ -697,5 +635,6 @@ module.exports.addBankDetails = (req,res) => {
                 error: err
             })
         }
-    })
+    }
+ 
 }

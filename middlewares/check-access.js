@@ -1,18 +1,27 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
 
-module.exports = (access, routeType, isIndustryAccessAllowed, isPlantAccessAllowed) => {
+module.exports = (access, isIndustryAccessAllowed = false, isPlantAccessAllowed = true, isOnlySuperAdminAccessAllowed = false, isAllPlantRolesAllowed = false) => {
     return async (req, res, next) => {
         try {
             const useruid = req.userData.uid
             const user = await firestore.collection('users').doc(useruid).get()
             const roleName = req.userData.role
+            const routeType = req.method
 
-            // TODO: Add check for plant access
+            if(isOnlySuperAdminAccessAllowed && roleName !== 'super admin'){
+                return res.status(401).json({
+                    message: "Only Super Admin access allowed"
+                })
+            }
 
-            if(roleName === 'super admin' || roleName === 'admin'){
+            if(isAllPlantRolesAllowed && roleName !== 'industry'){
                 return next()
-            } else if (roleName === 'officer' || roleName === 'operator'){
+            }
+
+            if((roleName === 'super admin' || roleName === 'admin') && isPlantAccessAllowed){
+                return next()
+            } else if ((roleName === 'officer' || roleName === 'operator') && isPlantAccessAllowed){
                 const departmentAccess = user.get('departmentAccess')
 
                 if(!departmentAccess.includes('All')){

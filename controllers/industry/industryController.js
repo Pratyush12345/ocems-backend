@@ -126,32 +126,21 @@ module.exports.signUp = async (req,res) => {
 }
  
 // returns all industries of a plant using admin's id
-module.exports.getRequests = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getRequests = async (req,res) => {
+    const plantID = req.userData.plantID
+    const roleName = req.userData.role
     let industryid = req.query.id
-
-    firebase.auth().getUser(adminuid)
-    .then(async admin => {
-        let plantID 
-
-        if(admin.customClaims.role === "industry"){
-            if(industryid){
-                return res.status(400).json({
-                    message: "Industry ID can't be present for an industry user."
-                })
-            }
-
-            industryid = admin.customClaims.industryid
-            plantID = admin.customClaims.plantID
-        } else if (admin.customClaims.role === "admin") {
-            const admin = await firestore.collection('users').doc(adminuid).get()
-            plantID = admin.get('plantID')
-        } else {
-            return res.status(401).json({
-                message: "Only admin or industry can get industries"
+    
+    if(roleName === "industry"){
+        if(industryid){
+            return res.status(400).json({
+                message: "Industryid not allowed"
             })
         }
+        industryid = req.userData.industryid
+    } 
 
+    try {
         if(industryid){
             const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
             if(!industry.exists){
@@ -184,35 +173,20 @@ module.exports.getRequests = (req,res) => {
             })
             
         }
-
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 // returns all industries of a plant using admin's id
-module.exports.getUnapprovedRequests = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getUnapprovedRequests = async (req,res) => {
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can get industries"
-            })
-        }
-
-        const plantID = admin.get('plantID')
+    try {
         const requests = await firestore.collection(`plants/${plantID}/industryUsers`).where('approved', '==', false).get()
         
         const industries = [];
@@ -226,13 +200,13 @@ module.exports.getUnapprovedRequests = (req,res) => {
         return res.status(200).json({
             industries: industries
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 /**
@@ -244,9 +218,58 @@ module.exports.getUnapprovedRequests = (req,res) => {
  *      ~ Remove request from industriesRequest
  *      ~ Send email with credentials
  */
-module.exports.approveRequest = (req,res) => {
+module.exports.approveRequest = async (req,res) => {
     const industryuid = req.params.uid
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
+
+    try {
+        // plant check for admin and industry
+        const industryRequest = await firestore.collection('industriesRequest').doc(industryuid).get()
+
+        if(industryRequest.get('plantID') !== plantID){
+            return res.status(401).json({
+                message: "Admin doesn't belong to the industries' selected plant"
+            })
+        }
+
+        // create new industry firebase account
+        const date = new Date()
+        const password = `${industryuid}_${date.toISOString().replace(/\s+/g, '')}`
+
+        const newIndustryAccount = await firebase.auth().createUser({
+            email: industryRequest.get('email'),
+            password: password,
+            emailVerified: false,
+            disabled: false
+        })
+
+        // set custom claim for plant id on industry
+        await firebase.auth().setCustomUserClaims(newIndustryAccount.uid, {
+            plantID: plantID,
+            role: "industry",
+            industryid: industryuid
+        })
+
+        // update industry approved field in plant's industry collection
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryuid).update({
+            approved: true
+        })
+
+        // remove industry request from the industriesRequest collection
+        await firestore.collection('industriesRequest').doc(industryuid).delete()
+
+        // send email with credentials
+        await Email.sendCredentialMail("Industry", newIndustryAccount.email, password)
+
+        return res.status(200).json({
+            message: "Industry approved and credential mail sent"
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
@@ -322,26 +345,18 @@ module.exports.approveRequest = (req,res) => {
  *      ~ Delete industry from plant's industry collection
  *      ~ Send rejection email
  */
-module.exports.rejectRequest = (req,res) => {
+module.exports.rejectRequest = async (req,res) => {
     const industryuid = req.params.uid
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can reject industries"
-            })
-        }
-
+    try {
         const industryRequest = await firestore.collection('industriesRequest').doc(industryuid).get()
-        const plantID = admin.get('plantID')
+
+        if(!industryRequest.exists){
+            return res.status(404).json({
+                message: "Industry request doesn't exist"
+            })
+        }
 
         if(industryRequest.get('plantID') !== plantID){
             return res.status(401).json({
@@ -361,13 +376,13 @@ module.exports.rejectRequest = (req,res) => {
         return res.status(200).json({
             message: "Industry Rejected and rejection mail sent"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 /**
@@ -380,25 +395,11 @@ module.exports.rejectRequest = (req,res) => {
  *      ~ Add to plant's industries collection with approved to true
  *      ~ Send email with credentials
  */
-module.exports.bulkUpload = (req,res) => {
+module.exports.bulkUpload = async (req,res) => {
     const industries = req.body.industries
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can add industries"
-            })
-        }
-
-        const plantID = admin.get('plantID')
+    try {
         let counter=0
 
         for (let i = 0; i < industries.length; i++) {
@@ -448,20 +449,42 @@ module.exports.bulkUpload = (req,res) => {
         return res.status(200).json({
             message: `Added ${counter} industries and sent ${counter} credential email(s)`
         })
-       
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 // Normal function to delete an industry based on the admin's uid (to get the plant collection)
-module.exports.deleteIndustry = (req,res) => {
+module.exports.deleteIndustry = async (req,res) => {
     const industryid = req.params.uid
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
+
+    try {
+        const industryFirestore = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+        const industry = await firebase.auth().getUserByEmail(industryFirestore.get('email'))
+
+        // delete industries firebase account
+        await firebase.auth().deleteUser(industry.uid)
+
+        // delete industry from plant's industry collection
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).delete()
+
+        // delete request from industry requests (if present)
+        await IndustryRequest.doc(industryid).delete()
+
+        return res.status(200).json({
+            message: "Industry deleted"
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 
     firestore.collection('users').doc(adminuid).get()
     .then(async admin => {
