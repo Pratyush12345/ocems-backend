@@ -1,8 +1,16 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
 
-module.exports = (access, isIndustryAccessAllowed = false, isPlantAccessAllowed = true, isOnlySuperAdminAccessAllowed = false, isAllPlantRolesAllowed = false) => {
+module.exports = (access, options = {}) => {
+    const {
+        isIndustryAccessAllowed = false,
+        isPlantAccessAllowed = true,
+        isOnlySuperAdminAccessAllowed = false,
+        areAllPlantRolesAllowed = false
+    } = options;
+
     return async (req, res, next) => {
+
         try {
             const useruid = req.userData.uid
             const user = await firestore.collection('users').doc(useruid).get()
@@ -15,7 +23,7 @@ module.exports = (access, isIndustryAccessAllowed = false, isPlantAccessAllowed 
                 })
             }
 
-            if(isAllPlantRolesAllowed && roleName !== 'industry'){
+            if(areAllPlantRolesAllowed && roleName !== 'industry'){
                 return next()
             }
 

@@ -1,20 +1,24 @@
 const express = require('express')
 const router = express.Router()
 const alertController = require('../../controllers/plant/alertController')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: ['Process-Read', 'Process-Write'],
     write: ['Process-Write']
 }
 
-const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
-    };
-}
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: alertController.getAlerts,
+    },
+    {
+        method: 'get',
+        path: '/count',
+        controller: alertController.alertsCount,
+    }
 
-router.get('/', accessCheck(), alertController.getAlerts)
-router.get('/count', accessCheck(), alertController.alertsCount)
-// router.post('/test', alertController.test)
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

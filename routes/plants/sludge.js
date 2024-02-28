@@ -1,21 +1,33 @@
 const express = require('express')
 const router = express.Router()
 const sludgeController = require('../../controllers/plant/sludgeController')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: ['Reports-Read', 'Reports-Write'],
     write: ['Reports-Write']
 }
 
-const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
-    };
-}
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: sludgeController.getSludge,
+    },
+    {
+        method: 'post',
+        path: '/create',
+        controller: sludgeController.createSludge,
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: sludgeController.updateSludge,
+    },
+    {
+        method: 'delete',
+        path: '/delete',
+        controller: sludgeController.deleteSludge,
+    }
+]
 
-router.get('/', accessCheck(), sludgeController.getSludge)
-router.post('/create', accessCheck(), sludgeController.createSludge)
-router.patch('/update', accessCheck(), sludgeController.updateSludge)
-router.delete('/delete', accessCheck(), sludgeController.deleteSludge)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

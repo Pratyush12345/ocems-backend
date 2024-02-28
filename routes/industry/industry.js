@@ -1,28 +1,50 @@
 const express = require('express')
 const router = express.Router()
 const industryController = require('../../controllers/industry/industryController')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: ['Industry-Read', 'Industry-Write'],
     write: ['Industry-Write']
-}
-
-const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
-    };
 }
 
 router.use('/bill', require('./bill'))
 router.use('/notice', require('./notice'))
 router.use('/flow', require('./flow'))
 
-// router.post('/signup', industryController.signUp) // ! Shifted to Public routes
-router.get('/', accessCheck(true), industryController.getRequests)
-router.get('/requests', accessCheck(), industryController.getUnapprovedRequests)
-router.post('/approve/:uid', accessCheck(), industryController.approveRequest)
-router.post('/reject/:uid', accessCheck(), industryController.rejectRequest)
-router.post('/bulkadd', accessCheck(), industryController.bulkUpload)
-router.delete('/delete/:uid', accessCheck(), industryController.deleteIndustry)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: industryController.getRequests,
+        options: {
+            isIndustryAccessAllowed: true
+        }
+    },
+    {
+        method: 'get',
+        path: '/requests',
+        controller: industryController.getUnapprovedRequests,
+    },
+    {
+        method: 'post',
+        path: '/approve/:uid',
+        controller: industryController.approveRequest,
+    },
+    {
+        method: 'post',
+        path: '/reject/:uid',
+        controller: industryController.rejectRequest,
+    },
+    {
+        method: 'post',
+        path: '/bulkadd',
+        controller: industryController.bulkUpload,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:uid',
+        controller: industryController.deleteIndustry,
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

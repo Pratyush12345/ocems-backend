@@ -9,9 +9,9 @@ module.exports = (req, res, next) => {
     
     req.userData = {}
     // req.userData.uid = super_admin;
-    // req.userData.uid = admin;
+    req.userData.uid = admin;
     // req.userData.uid = officer;
-    req.userData.uid = operator;
+    // req.userData.uid = operator;
     // req.userData.uid = industry;
     return next()
 

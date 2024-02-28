@@ -1,21 +1,37 @@
 const express = require('express')
 const router = express.Router()
 const superAdminController = require('../../controllers/users/superAdminController')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: [],
     write: []
 }
 
-const accessCheck = (isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed) => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed)(req, res, next);
-    };
-}
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: superAdminController.getSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: superAdminController.updateSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'delete',
+        path: '/delete',
+        controller: superAdminController.deleteSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    }
+]
 
-router.get('/getsuperadmin', accessCheck(false,true,true), superAdminController.getSuperAdmin)
-// router.post('/signup', superAdminController.signUp)
-router.patch('/update', accessCheck(false,true,true), superAdminController.updateSuperAdmin)
-router.patch('/delete', accessCheck(false,true,true), superAdminController.deleteSuperAdmin)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess);

@@ -1,27 +1,46 @@
 const express = require('express')
 const router = express.Router()
 const adminController = require('../../controllers/users/adminController')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: [],
     write: []
 }
 
-const accessCheck = (
-        isIndustryAccessAllowed, 
-        isPlantAccessAllowed, 
-        isOnlySuperAdminAccessAllowed,
-        isAllPlantRolesAllowed
-    ) => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, req.method, isIndustryAccessAllowed, isPlantAccessAllowed, isOnlySuperAdminAccessAllowed, isAllPlantRolesAllowed)(req, res, next);
-    };
-}
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: adminController.getAdmin,
+        options: {
+            areAllPlantRolesAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/signup',
+        controller: adminController.signUp,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: adminController.updateAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'delete',
+        path: '/delete/:adminuid',
+        controller: adminController.deleteAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    }
 
-router.get('/getadmin', accessCheck(false,true,false,true), adminController.getAdmin)
-router.post('/signup', accessCheck(false,true,true), adminController.signUp)
+]
 
-router.patch('/update', accessCheck(), adminController.updateAdmin)
-router.delete('/delete/:adminuid', accessCheck(false,true,true), adminController.deleteAdmin)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess);
