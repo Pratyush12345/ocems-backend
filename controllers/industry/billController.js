@@ -798,6 +798,15 @@ module.exports.downloadBill = async (req,res) => {
 
     fs.unlinkSync(filepath)
 
-        
+        Error: Failed to launch the browser process!
+0|app  | /root/.cache/puppeteer/chrome/linux-121.0.6167.85/chrome-linux64/chrome: error while loading shared libraries: libatk-1.0.so.0: cannot open shared object file: No such file or directory
+0|app  | TROUBLESHOOTING: https://pptr.dev/troubleshooting
+0|app  |     at Interface.onClose (/root/ocems/node_modules/@puppeteer/browsers/lib/cjs/launch.js:267:24)
+0|app  |     at Interface.emit (node:events:531:35)
+0|app  |     at Interface.close (node:internal/readline/interface:527:10)
+0|app  |     at Socket.onend (node:internal/readline/interface:253:10)
+0|app  |     at Socket.emit (node:events:531:35)
+0|app  |     at endReadableNT (node:internal/streams/readable:1696:12)
+0|app  |     at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
 
 */
