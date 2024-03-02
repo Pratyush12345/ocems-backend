@@ -1,8 +1,18 @@
 const express = require('express')
 const router = express.Router()
 const operatorController = require('../../controllers/users/operatorController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: [],
+    write: []
+}
 
-router.post('/signup', checkAuth, operatorController.signUp)
+const routes = [
+    {
+        method: 'post',
+        path: '/signup',
+        controller: operatorController.signUp
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess);

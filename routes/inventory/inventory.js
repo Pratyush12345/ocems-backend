@@ -1,16 +1,44 @@
 const express = require('express');
 const router = express.Router();
-const checkAuth = require('../../middlewares/check-auth')
 const inventoryController = require('../../controllers/inventory/inventoryController')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Inventory-Read', 'Inventory-Write'],
+    write: ['Inventory-Write']
+}
 
-router.get('/', checkAuth, inventoryController.getItems)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: inventoryController.getItems
+    },
+    {
+        method: 'post',
+        path: '/add',
+        controller: inventoryController.addItem,
+    },
+    {
+        method: 'patch',
+        path: '/use',
+        controller: inventoryController.useItem,
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: inventoryController.updateItem,
+    },
+    {
+        method: 'patch',
+        path: '/restock',
+        controller: inventoryController.restockItem,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:itemid',
+        controller: inventoryController.deleteItem,
+    }
 
-router.post('/add', checkAuth, inventoryController.addItem)
+]
 
-router.patch('/use', checkAuth, inventoryController.useItem)
-router.patch('/update', checkAuth, inventoryController.updateItem)
-router.patch('/restock', checkAuth, inventoryController.restockItem)
-
-router.delete('/delete/:itemid', checkAuth, inventoryController.deleteItem)
-
-module.exports = router;
+module.exports = defineRoutes(router, routes, departmentAccess);

@@ -1,35 +1,35 @@
 const firebase = require('../config/firebase')
 const firestore = firebase.firestore()
 
-module.exports = (access, routeType, isIndustryAccessAllowed = false) => {
+module.exports = (access, options = {}) => {
+    const {
+        isIndustryAccessAllowed = false,
+        isPlantAccessAllowed = true,
+        isOnlySuperAdminAccessAllowed = false,
+        areAllPlantRolesAllowed = false
+    } = options;
+
     return async (req, res, next) => {
+
         try {
             const useruid = req.userData.uid
             const user = await firestore.collection('users').doc(useruid).get()
             const roleName = req.userData.role
+            const routeType = req.method
 
-            if(roleName === 'super admin'){
-                const plantID = req.body.plantID
-                
-                if(!plantID){
-                    return res.status(400).json({
-                        message: "Please provide a plantID"
-                    })
-                }
-                
-                const plant = await firestore.collection('plants').doc(plantID).get()
-                
-                if(!plant.exists){
-                    return res.status(404).json({
-                        message: `Plant ${plantID} not found`
-                    })
-                }
-                
-                req.userData.plantID = plantID
+            if(isOnlySuperAdminAccessAllowed && roleName !== 'super admin'){
+                return res.status(401).json({
+                    message: "Only Super Admin access allowed"
+                })
+            }
+
+            if(areAllPlantRolesAllowed && roleName !== 'industry'){
                 return next()
-            } else if (roleName === 'admin'){
+            }
+
+            if((roleName === 'super admin' || roleName === 'admin') && isPlantAccessAllowed){
                 return next()
-            } else if (roleName === 'officer' || roleName === 'operator'){
+            } else if ((roleName === 'officer' || roleName === 'operator') && isPlantAccessAllowed){
                 const departmentAccess = user.get('departmentAccess')
 
                 if(!departmentAccess.includes('All')){

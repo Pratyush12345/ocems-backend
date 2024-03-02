@@ -3,42 +3,25 @@ const firestore = firebase.firestore()
 const IndustryRequest = firestore.collection('industriesRequest')
 const Email = require('../../mail/mailController')
 
-module.exports.getItems = (req,res) => {
-    const useruid = req.userData.uid
+module.exports.getItems = async (req,res) => {
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
-            return res.status(404).json({
-                message: "User doesn't exist"
-            })
-        }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
-            })
-        }
+    // get values from query
+    const itemType = req.query.type
+    const itemid = req.query.itemid
 
-        // get plant id of authorized user
-        const plantID = user.get('plantID')
+    // if both queries exist together, throw error
+    if(itemid && itemType){
+        return res.status(400).json({
+            message: "Invalid request"
+        })
+    }
 
+    try {
         let itemsQuery
 
-        // get values from query
-        const itemType = req.query.type
-        const itemid = req.query.itemid
-
-        // if both queries exist together, throw error
-        if(itemid!==undefined && itemType!==undefined){
-            return res.status(400).json({
-                message: "Invalid request"
-            })
-        }
-
         // itemsQuery definition
-        if(itemid!==undefined){
+        if(itemid){
             itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
 
             if(!itemsQuery.exists){
@@ -50,7 +33,7 @@ module.exports.getItems = (req,res) => {
                     items: itemsQuery.data()
                 })
             }
-        } else if(itemType!==undefined){
+        } else if(itemType){
             if(itemType==="0"){
                 itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).where('itemType', '==', "Consumable").get()
             } else if(itemType==="1") {
@@ -75,40 +58,32 @@ module.exports.getItems = (req,res) => {
         return res.status(200).json({
             items: items
         })
-        
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.addItem = (req,res) => {
+module.exports.addItem = async (req,res) => {
     const itemCode = req.body.itemCode
     const itemName = req.body.itemName
     const itemType = req.body.itemType
     const itemUnit = req.body.itemUnit
-    const useruid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
-            return res.status(404).json({
-                message: "User doesn't exist"
+    const requiredFields = ['itemCode', 'itemName', 'itemType', 'itemUnit']
+    for (const field of requiredFields) {
+        if (!req.body[field]) {
+            return res.status(400).json({
+                message: `${field} is required`
             })
         }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
-            })
-        }
+    }
 
-        const plantID = user.get('plantID')
-        
+    try {
         // Already existing item check
         const itemCheck = await firestore.collection(`plants/${plantID}/inventory`).where('itemCode', "==", itemCode).get()
         if(!itemCheck.empty){
@@ -131,38 +106,32 @@ module.exports.addItem = (req,res) => {
         return res.status(201).json({
             message: "Item added successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.useItem = (req,res) => {
+module.exports.useItem = async (req,res) => {
     const itemid = req.body.itemid
     const usageQty = req.body.usageQty
     const usageUnit = req.body.usageUnit
-    const useruid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
-            return res.status(404).json({
-                message: "User doesn't exist"
+    const requiredFields = ['itemid', 'usageQty', 'usageUnit']
+
+    for (const field of requiredFields) {
+        if (!req.body[field]) {
+            return res.status(400).json({
+                message: `${field} is required`
             })
         }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
-            })
-        }
+    }
 
-        const plantID = user.get('plantID')
-        
+    try {
         // get item from inventory
         const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
         const itemUnit = item.get('itemUnit')
@@ -209,38 +178,32 @@ module.exports.useItem = (req,res) => {
         return res.status(200).json({
             message: "Item usage added"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.restockItem = (req,res) => {
+module.exports.restockItem = async (req,res) => {
     const itemid = req.body.itemid
     const restockItemUnit = req.body.itemUnit
     const restockItemQty = req.body.itemQty
-    const useruid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
-            return res.status(404).json({
-                message: "User doesn't exist"
+    const requiredFields = ['itemid', 'itemUnit', 'itemQty']
+
+    for (const field of requiredFields) {
+        if (!req.body[field]) {
+            return res.status(400).json({
+                message: `${field} is required`
             })
         }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
-            })
-        }
+    }
 
-        const plantID = user.get('plantID')
-        
+    try {
         // get item from inventory
         const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
         const itemUnit = item.get('itemUnit')
@@ -276,95 +239,93 @@ module.exports.restockItem = (req,res) => {
         return res.status(200).json({
             message: "Item restocked successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.updateItem = (req,res) => {
+module.exports.updateItem = async (req,res) => {
     const itemid = req.body.itemid
     const updates = req.body.updates
-    const useruid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
-            return res.status(404).json({
-                message: "User doesn't exist"
-            })
-        }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
-            })
-        }
+    if(!itemid){
+        return res.status(400).json({
+            message: "Item id is required"
+        })
+    }
 
-        if(updates["itemQuantityAvailable"]!==undefined){
-            return res.status(400).json({
-                message: "Can't update available quantity"
-            })
-        }
-
-        const plantID = user.get('plantID')
-        
+    try {
         // change modified date and time
         updates["dateUpdated"]=new Date().toUTCString()
 
+        const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
+
+        if(!item.exists){
+            return res.status(404).json({
+                message: "Item doesn't exist"
+            })
+        }
+
         // update item in collection
-        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).update(updates)
+        await item.ref.update(updates)
 
         return res.status(200).json({
             message: "Item updated successfully"
         })
-        
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.deleteItem = (req,res) => {
+module.exports.deleteItem = async (req,res) => {
     const itemid = req.params.itemid
-    const useruid = req.userData.uid
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(useruid).get()
-    .then(async user => {
-        if(!user.exists){
+    if(!itemid){
+        return res.status(400).json({
+            message: "Item id is required"
+        })
+    }
+
+    try {
+        const item = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
+
+        if(!item.exists){
             return res.status(404).json({
-                message: "User doesn't exist"
-            })
-        }
-        
-        // Access handling- everyone above operator
-        if(user.get('accessLevel')!==1 && user.get('accessLevel')!==2 && user.get('accessLevel')!==3){
-            return res.status(401).json({
-                message: "User not authorized to perform operations on inventory"
+                message: "Item doesn't exist"
             })
         }
 
-        const plantID = user.get('plantID')
+        // get all subcollections of item and delete them sequentially
+        const subcollections = await item.ref.listCollections()
+        for (const subcollection of subcollections) {
+            const subcollectionDocs = await subcollection.get()
+            for (const doc of subcollectionDocs.docs) {
+                await doc.ref.delete()
+            }
+        }
+
         // update item in collection
-        await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).delete()
+        await item.ref.delete()
 
         return res.status(200).json({
             message: "Item deleted successfully"
         })
-        
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 

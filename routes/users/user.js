@@ -1,13 +1,41 @@
 const express = require('express')
 const router = express.Router()
 const userContoller = require('../../controllers/users/userController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: [],
+    write: []
+}
 
-router.get('/', userContoller.getUsers)
-router.get('/:uid', userContoller.getUser)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: userContoller.getUsers,
+    },
+    {
+        method: 'get',
+        path: '/:uid',
+        controller: userContoller.getUser,
+        options: { 
+            areAllPlantRolesAllowed: true
+        }
+    },
+    {
+        method: 'patch',
+        path: '/update/password',
+        controller: userContoller.passwordReset,
+    },
+    {
+        method: 'patch',
+        path: '/update/:useruid',
+        controller: userContoller.updateUser,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:useruid',
+        controller: userContoller.deleteUser,
+    }
+]
 
-router.patch('/update/password', checkAuth, userContoller.passwordReset)
-router.patch('/update/:useruid', checkAuth, userContoller.updateUser)
-router.delete('/delete/:useruid', checkAuth, userContoller.deleteUser)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

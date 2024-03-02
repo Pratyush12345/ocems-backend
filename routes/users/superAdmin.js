@@ -1,11 +1,37 @@
 const express = require('express')
 const router = express.Router()
 const superAdminController = require('../../controllers/users/superAdminController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: [],
+    write: []
+}
 
-router.get('/getsuperadmin', checkAuth, superAdminController.getSuperAdmin)
-router.post('/signup', superAdminController.signUp)
-router.patch('/update', checkAuth, superAdminController.updateSuperAdmin)
-router.patch('/delete', checkAuth, superAdminController.deleteSuperAdmin)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: superAdminController.getSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: superAdminController.updateSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'delete',
+        path: '/delete',
+        controller: superAdminController.deleteSuperAdmin,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess);

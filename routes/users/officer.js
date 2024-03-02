@@ -1,8 +1,18 @@
 const express = require('express')
 const router = express.Router()
 const officerController = require('../../controllers/users/officerController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: [],
+    write: []
+}
 
-router.post('/signup', checkAuth, officerController.signUp)
+const routes = [
+    {
+        method: 'post',
+        path: '/signup',
+        controller: officerController.signUp
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess);

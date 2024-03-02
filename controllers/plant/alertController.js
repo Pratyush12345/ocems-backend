@@ -7,26 +7,11 @@ function extractInstrumentCode(inputString) {
     return match ? match[0] : null;
 }
 
-module.exports.getAlerts = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getAlerts = async (req,res) => {
     const location = req.query.location
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform alert operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         const alerts = await firestore.collection(`plants/${plantID}/InstrumentAlerts`).orderBy('timestamp', 'desc').get()
         
         const alertList = []
@@ -86,46 +71,31 @@ module.exports.getAlerts = (req,res) => {
             count: alertsToReturn.length,
             data: alertsToReturn
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.alertsCount = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.alertsCount = async (req,res) => {
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform alert operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         const count = (await firestore.collection(`plants/${plantID}/InstrumentAlerts`).count().get()).data().count
 
         return res.status(200).json({
             count: count
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 /**

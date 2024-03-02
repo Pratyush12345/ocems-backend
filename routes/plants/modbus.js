@@ -1,12 +1,38 @@
 const express = require('express')
 const router = express.Router()
 const modbusController = require('../../controllers/plant/modbusController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Reports-Read', 'Reports-Write'],
+    write: ['Reports-Write']
+}
 
-router.get('/', checkAuth, modbusController.getAllAddress)
-router.get('/report', checkAuth, modbusController.getReport)
-router.post('/add', checkAuth, modbusController.addInstrumentsModbusAddress)
-router.patch('/update/tagno', checkAuth, modbusController.updateTagNo)
-router.delete('/delete/:address', checkAuth, modbusController.deleteAddress)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: modbusController.getAllAddress,
+    },
+    {
+        method: 'get',
+        path: '/report',
+        controller: modbusController.getReport,
+    },
+    {
+        method: 'post',
+        path: '/add',
+        controller: modbusController.addInstrumentsModbusAddress,
+    },
+    {
+        method: 'patch',
+        path: '/update/tagno',
+        controller: modbusController.updateTagNo,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:address',
+        controller: modbusController.deleteAddress,
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

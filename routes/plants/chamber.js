@@ -1,12 +1,39 @@
 const express = require('express')
 const router = express.Router()
-const checkAuth = require('../../middlewares/check-auth')
 const chamberController = require('../../controllers/plant/chamberController')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Process-Read', 'Process-Write'],
+    write: ['Process-Write']
+}
 
-router.get('/', chamberController.getChamber)
-router.post('/add', chamberController.createChamber)
-router.patch('/update', chamberController.updateChamber)
-router.patch('/update/position', chamberController.swapChamberPosition)
-router.delete('/delete/:chamberID', chamberController.deleteChamber)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: chamberController.getChamber
+    },
+    {
+        method: 'post',
+        path: '/add',
+        controller: chamberController.createChamber,
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: chamberController.updateChamber,
+    },
+    {
+        method: 'patch',
+        path: '/update/position',
+        controller: chamberController.swapChamberPosition,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:chamberID',
+        controller: chamberController.deleteChamber,
+    }
 
-module.exports = router
+]
+
+module.exports = defineRoutes(router, routes, departmentAccess);

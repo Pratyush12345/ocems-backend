@@ -1,10 +1,24 @@
 const express = require('express')
 const router = express.Router()
 const alertController = require('../../controllers/plant/alertController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Process-Read', 'Process-Write'],
+    write: ['Process-Write']
+}
 
-router.get('/', checkAuth, alertController.getAlerts)
-router.get('/count', checkAuth, alertController.alertsCount)
-router.post('/test', alertController.test)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: alertController.getAlerts,
+    },
+    {
+        method: 'get',
+        path: '/count',
+        controller: alertController.alertsCount,
+    }
 
-module.exports = router
+]
+
+module.exports = defineRoutes(router, routes, departmentAccess)

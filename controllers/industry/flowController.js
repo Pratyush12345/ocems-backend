@@ -3,10 +3,9 @@ const firestore = firebase.firestore()
 const db = firebase.database()
 const axios = require('axios')
 
-module.exports.addapiID = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
+module.exports.addapiID = async (req,res) => {
     const data = req.body.data
+    const plantID = req.userData.plantID
 
     // Error checking
     if(!Array.isArray(data)){
@@ -37,35 +36,8 @@ module.exports.addapiID = (req,res) => {
         }
 
     }
-    
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
 
-        let plantID 
-        if(admin.get('accessLevel')!==1){
-            if(admin.get('accessLevel')===0){
-                plantID = req.body.plantID
-
-                if(plantID===undefined){
-                    return res.status(400).json({
-                        message: "plantID is required for the superadmin to add data"
-                    })
-                }
-
-            } else {
-                return res.status(401).json({
-                    message: "Only admin or superadmin can add data"
-                })
-            }
-        } else {
-            plantID = admin.get('plantID')
-        }
-
+    try {
         for (let i = 0; i < data.length; i++) {
             const element = data[i];
             
@@ -89,13 +61,13 @@ module.exports.addapiID = (req,res) => {
         return res.status(200).json({
             message: "API ID's added successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+    
 }
 
 /**
@@ -109,6 +81,7 @@ module.exports.addapiID = (req,res) => {
  * 7. update the latestFlowData field of each industryUser
  */
 
+// ! NOT Present in the routes
 module.exports.fetchData = async () => {
     try {
         const plants = await firestore.collection('plants').get()
@@ -178,11 +151,10 @@ module.exports.fetchData = async () => {
     }
 }
 
-module.exports.getLatestFlowData = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+module.exports.getLatestFlowData = async (req,res) => {
     const industries = req.body.industries
     const industryid = req.query.industryid
+    const plantID = req.userData.plantID
 
     // Error checking
     if(industries && industryid){
@@ -209,6 +181,35 @@ module.exports.getLatestFlowData = (req,res) => {
     } else if(!industries && !industryid){
         return res.status(200).json({
             message: "industries or IndustryID not defined"
+        })
+    }
+
+    try {
+        const data = []
+        if(industries){
+            for (let i = 0; i < industries.length; i++) {
+                const element = industries[i];
+                const industryData = await firestore.collection(`plants/${plantID}/industryUsers`).doc(element).get()
+                data.push({
+                    id: industryData.id,
+                    data: industryData.data().latestFlowData
+                })    
+            }
+        } else if(industryid){
+            const industryData = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+            data.push({
+                id: industryData.id,
+                data: industryData.data().latestFlowData
+            })
+        }
+
+        return res.status(200).json({
+            data: data
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
     }
 
@@ -258,11 +259,10 @@ module.exports.getLatestFlowData = (req,res) => {
     })
 }
 
-module.exports.getAllFlowData = (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+module.exports.getAllFlowData = async (req,res) => {
     const industryid = req.query.industryid
     const date = req.query.date
+    const plantID = req.userData.plantID
 
     if(!industryid){
         return res.status(400).json({
@@ -270,22 +270,7 @@ module.exports.getAllFlowData = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        let plantID 
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can access this route"
-            })
-        } 
-        plantID = admin.get('plantID')
-        
+    try {
         const data = []
 
         if(date) {
@@ -325,11 +310,11 @@ module.exports.getAllFlowData = (req,res) => {
         return res.status(200).json({
             data: data
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+    
 }

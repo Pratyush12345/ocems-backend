@@ -2,8 +2,8 @@ const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 const { getMessaging } = require('firebase-admin/messaging');
 
-module.exports.addInstrumentsModbusAddress = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.addInstrumentsModbusAddress = async (req,res) => {
+    const plantID = req.userData.plantID
     const data = req.body.data
 
     // check if data is an array
@@ -59,22 +59,7 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
+    try {
         // get the local instruments json file
         const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
 
@@ -129,13 +114,13 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
         return res.status(200).json({
             message: 'Modbus address added successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.addReport = async (plantID, address, timestamp, value) => {
@@ -190,22 +175,30 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
                                 `Reading above the upper limit with value: ${value}`
 
                             if(value < lowerLimit || value > upperLimit){
-                                // send notification to plant admin
-                                const message = {
-                                    data: {
-                                        title: "Instrument flow alert!!!",
-                                        body: messageText,
-                                        instrument: TagNo,
-                                        value: value,
-                                        timestamp: timestamp,
-                                        lowerLimit: lowerLimit,
-                                        upperLimit: upperLimit,
-                                        address: address
-                                    },
-                                    token: fcm_token
-                                }
 
-                                await getMessaging().send(message)
+                                if(fcm_token){
+                                    try {
+                                        // send notification to plant admin
+                                        const message = {
+                                            data: {
+                                                title: "Instrument flow alert!!!",
+                                                body: messageText,
+                                                instrument: TagNo,
+                                                value: value,
+                                                timestamp: timestamp,
+                                                lowerLimit: lowerLimit,
+                                                upperLimit: upperLimit,
+                                                address: address
+                                            },
+                                            token: fcm_token
+                                        }
+        
+                                        await getMessaging().send(message)
+                                        
+                                    } catch (error) {
+                                        console.log("Notification not sent");
+                                    }
+                                }
                             }
 
                             await firestore.collection(`plants/${plantID}/InstrumentAlerts`).add({
@@ -227,26 +220,11 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
     }
 }
 
-module.exports.getAllAddress = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getAllAddress = async (req,res) => {
+    const plantID = req.userData.plantID
     const data = req.body.data
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
+    try {
         const InstrumentData = await firestore.collection(`plants/${plantID}/InstrumentData`).get()
 
         let dataToReturn = []
@@ -325,17 +303,17 @@ module.exports.getAllAddress = (req,res) => {
         return res.status(200).json({
             data: dataToReturn
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.getReport = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.getReport = async (req,res) => {
+    const plantID = req.userData.plantID
     let address = req.query.address
     const year = req.query.year
     let month = req.query.month
@@ -369,22 +347,7 @@ module.exports.getReport = (req,res) => {
         }
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-        
-        const plantID = admin.data().plantID
-
+    try {
         let dataToReturn = []
         if(address !== undefined){
             const InstrumentData = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
@@ -451,17 +414,17 @@ module.exports.getReport = (req,res) => {
         return res.status(200).json({
             data: dataToReturn
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.updateTagNo = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.updateTagNo = async (req,res) => {
+    const plantID = req.userData.plantID
     const address = req.body.address
     const TagNo = req.body.TagNo
 
@@ -502,22 +465,7 @@ module.exports.updateTagNo = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
+    try {
         const InstrumentData = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
 
         if(!InstrumentData.exists){
@@ -562,17 +510,17 @@ module.exports.updateTagNo = (req,res) => {
         return res.status(200).json({
             message: "TagNo updated successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.deleteAddress = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.deleteAddress = async (req,res) => {
+    const plantID = req.userData.plantID
     let address = req.params.address
 
     address = parseInt(address)
@@ -583,22 +531,7 @@ module.exports.deleteAddress = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
+    try {
         const InstrumentData = await firestore.collection(`plants/${plantID}/InstrumentData`).doc(address.toString()).get()
 
         if(!InstrumentData.exists){
@@ -626,11 +559,11 @@ module.exports.deleteAddress = (req,res) => {
         return res.status(200).json({
             message: "Address deleted successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }

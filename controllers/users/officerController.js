@@ -105,7 +105,8 @@ module.exports.signUp = async (req, res) => {
                     plantID: user.get('plantID'),
                     phoneNo: phoneNo,
                     departmentAccess: departmentAccess,
-                    dateAdded: officer.metadata.creationTime
+                    dateAdded: officer.metadata.creationTime,
+                    fcm_token: ""
                 })
                 return newOfficer
             })

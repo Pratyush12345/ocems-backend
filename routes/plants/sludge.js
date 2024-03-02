@@ -1,11 +1,33 @@
 const express = require('express')
 const router = express.Router()
 const sludgeController = require('../../controllers/plant/sludgeController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Reports-Read', 'Reports-Write'],
+    write: ['Reports-Write']
+}
 
-router.get('/', checkAuth, sludgeController.getSludge)
-router.post('/create', checkAuth, sludgeController.createSludge)
-router.patch('/update', checkAuth, sludgeController.updateSludge)
-router.delete('/delete', checkAuth, sludgeController.deleteSludge)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: sludgeController.getSludge,
+    },
+    {
+        method: 'post',
+        path: '/create',
+        controller: sludgeController.createSludge,
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: sludgeController.updateSludge,
+    },
+    {
+        method: 'delete',
+        path: '/delete',
+        controller: sludgeController.deleteSludge,
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

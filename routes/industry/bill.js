@@ -2,24 +2,16 @@ const express = require('express')
 const router = express.Router()
 const billController = require('../../controllers/industry/billController')
 const multer = require('multer')
-const checkAuth = require('../../middlewares/check-auth')
-const checkIndustry = require('../../middlewares/check-industry')
-const extractUser = require('../../middlewares/extract-user')
-const checkAccess = require('../../middlewares/check-access')
+const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
     read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
     write: ['Bill-Write']
 }
 
-const GETAccessCheck = () => {
-    return (req, res, next) => {
-        checkAccess(departmentAccess, 'GET', true)(req, res, next);
-    };
-}
-
 const billRecieptStorage = multer({
     storage: multer.diskStorage({
         destination: (req,file,cb) => {
+            console.log('processing');
             return cb(null, 'uploads/industry/bill')
         },
         filename: (req,file,cb) => {
@@ -30,15 +22,53 @@ const billRecieptStorage = multer({
 
 router.use('/master', require('./billMaster'))
 
-router.get('/get', checkAuth, billController.getBills)
-router.get('/requests', checkAuth, billController.getBillApprovalRequests)
-router.get('/download', checkAuth, extractUser, GETAccessCheck(), billController.downloadBill)
+const routes = [
+    {
+        method: 'get',
+        path: '/get',
+        controller: billController.getBills,
+        options: {
+            isIndustryAccessAllowed: true
+        }
+    },
+    {
+        method: 'get',
+        path: '/requests',
+        controller: billController.getBillApprovalRequests,
+    },
+    {
+        method: 'get',
+        path: '/download',
+        controller: billController.downloadBill,
+        options: {
+            isIndustryAccessAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/create/:industryid',
+        controller: billController.createBill,
+    },
+    {
+        method: 'post',
+        path: '/upload/reciept',
+        controller: billController.uploadPaymentReciept,
+        middleware: [billRecieptStorage],
+        options: {
+            isIndustryAccessAllowed: true,
+            isPlantAccessAllowed: false
+        }
+    },
+    {
+        method: 'patch',
+        path: '/:decision/:requestid',
+        controller: billController.processBill,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:industryid/:billid',
+        controller: billController.deleteCopy,
+    }
+]
 
-router.post('/create/:industryid', checkAuth, billController.createBill)
-router.post('/upload/reciept', checkAuth, checkIndustry, billRecieptStorage, billController.uploadPaymentReciept)
-
-router.patch('/:decision/:requestid', checkAuth, billController.processBill)
-
-router.delete('/delete/:industryid/:billid', checkAuth, billController.deleteCopy)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

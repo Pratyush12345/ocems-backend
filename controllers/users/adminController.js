@@ -82,7 +82,8 @@ module.exports.signUp = async (req, res) => {
                     roleName: "Admin",
                     plantID: plantID,
                     phoneNo: phoneNo,
-                    dateAdded: admin.metadata.creationTime
+                    dateAdded: admin.metadata.creationTime,
+                    fcm_token: ""
                 })
                 return newAdmin
             })
@@ -116,29 +117,23 @@ module.exports.signUp = async (req, res) => {
 module.exports.getAdmin = (req,res) => {
     const adminuid = req.userData.uid
 
-    firestore.collection('users').doc(adminuid).get()
-    .then((adminDoc) => {
-        if (!adminDoc.exists) {
-            return res.status(404).json({
-                message: 'Admin not found',
-            });
-        }
-
-        const adminData = adminDoc.data();
+    try {
+        const user = firestore.collection('users').doc(adminuid).get()
+        const userData = user.data();
 
         return res.status(200).json({
-            admin: adminData,
+            admin: userData,
         });
-    })
-    .catch((error) => {
-        console.error(error);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            message: 'Internal Server Error',
-        });
-    });
+            error: error
+        })
+    }
+
 }
 
-module.exports.updateAdmin = (req,res) => {
+module.exports.updateAdmin = async (req,res) => {
     const adminuid = req.userData.uid
     const updatedData = req.body.updateData
 
@@ -178,26 +173,19 @@ module.exports.updateAdmin = (req,res) => {
         }
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
+    try {
         await firestore.collection('users').doc(adminuid).update(updatedData)
 
         return res.status(200).json({
             message: 'Admin updated successfully',
         });
-    })
-    .catch((error) => {
-        console.error(error);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            message: 'Internal Server Error',
-        });
-    });
+            error: error
+        })
+    }
+
 }
 
 module.exports.deleteAdmin = (req,res) => {

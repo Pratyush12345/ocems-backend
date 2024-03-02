@@ -63,7 +63,7 @@ module.exports.getPlant = (req,res) => {
     })
 }
 
-module.exports.createPlant = (req,res) => {
+module.exports.createPlant = async (req,res) => {
     const cin = req.body.cin
     const city = req.body.city
     const email = req.body.email
@@ -77,8 +77,6 @@ module.exports.createPlant = (req,res) => {
     const plantName = req.body.plantName
     const state = req.body.state
     const telNo = req.body.telNo
-    // const superadminuid = req.userData.uid
-    const superadminuid = "dyxmg4YOT0eeDx2NtyoU0vTAWUD2"
 
     for (let i = 0; i < plantRequiredFields.length; i++) {
         const element = plantRequiredFields[i];
@@ -195,20 +193,7 @@ module.exports.createPlant = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(superadminuid).get()
-    .then(async superadmin => {
-        if(!superadmin.exists) {
-            return res.status(400).json({
-                message: 'Superadmin does not exist'
-            })
-        }
-
-        if(superadmin.data().accessLevel !== 0) {
-            return res.status(400).json({
-                message: 'Only Superadmin can create a plant'
-            })
-        }
-
+    try {
         const year = (new Date().getFullYear()).toString()
         const nextYear = (parseInt(year) + 1).toString().slice(2,4)
         const quotationNumberYear = `${year}-${nextYear}`
@@ -247,41 +232,19 @@ module.exports.createPlant = (req,res) => {
         return res.status(200).json({
             message: "Plant created successfully"
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.getDepartmentAccess = (req,res) => {
-    const adminid = req.userData.uid
+module.exports.getDepartmentAccess = async (req,res) => {
+    const plantID = req.userData.plantID
 
-    firestore.collection('users').doc(adminid).get()
-    .then(async admin => {
-        if(!admin.exists) {
-            return res.status(400).json({
-                message: 'Admin does not exist'
-            })
-        }
-
-        if(admin.data().accessLevel !== 1) {
-            return res.status(400).json({
-                message: 'Only Admin can perform this operation'
-            })
-        }
-        const plantID = admin.get('plantID')
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists) {
-            return res.status(400).json({
-                message: 'Plant does not exist'
-            })
-        }
-
+    try {
         const ref = db.ref(`DepartmentAccess/${plantID}`)
         const snapshot = await ref.once('value')
         const departmentAccess = snapshot.val()
@@ -289,18 +252,18 @@ module.exports.getDepartmentAccess = (req,res) => {
         return res.status(200).json({
             departmentAccess: departmentAccess
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.updateDepartmentAccess = (req,res) => {
+module.exports.updateDepartmentAccess = async (req,res) => {
     const departmentAccess = req.body.departmentAccess
-    const adminid = req.userData.uid
+    const plantID = req.userData.plantID
 
     // check if departmentAccess is an array
     if(!Array.isArray(departmentAccess)){
@@ -316,29 +279,7 @@ module.exports.updateDepartmentAccess = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminid).get()
-    .then(async admin => {
-        if(!admin.exists) {
-            return res.status(400).json({
-                message: 'Admin does not exist'
-            })
-        }
-
-        if(admin.data().accessLevel !== 1) {
-            return res.status(400).json({
-                message: 'Only Admin can perform this operation'
-            })
-        }
-        const plantID = admin.get('plantID')
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists) {
-            return res.status(400).json({
-                message: 'Plant does not exist'
-            })
-        }
-
+    try {
         const ref = db.ref(`DepartmentAccess/${plantID}`)
         const snapshot = await ref.once('value')
         const departmentAccessOld = snapshot.val()
@@ -356,18 +297,18 @@ module.exports.updateDepartmentAccess = (req,res) => {
         return res.status(200).json({
             message: 'Department access updated successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.deleteDepartmentAccess = (req,res) => {
+module.exports.deleteDepartmentAccess = async (req,res) => {
     const departmentAccess = req.body.departmentAccess
-    const adminid = req.userData.uid
+    const plantID = req.userData.plantID
 
     // check if departmentAccess is an array
     if(!Array.isArray(departmentAccess)){
@@ -383,29 +324,7 @@ module.exports.deleteDepartmentAccess = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminid).get()
-    .then(async admin => {
-        if(!admin.exists) {
-            return res.status(400).json({
-                message: 'Admin does not exist'
-            })
-        }
-
-        if(admin.data().accessLevel !== 1) {
-            return res.status(400).json({
-                message: 'Only Admin can perform this operation'
-            })
-        }
-        const plantID = admin.get('plantID')
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists) {
-            return res.status(400).json({
-                message: 'Plant does not exist'
-            })
-        }
-
+    try {
         const ref = db.ref(`DepartmentAccess/${plantID}`)
         const snapshot = await ref.once('value')
         const departmentAccessOld = snapshot.val()
@@ -423,11 +342,11 @@ module.exports.deleteDepartmentAccess = (req,res) => {
         return res.status(200).json({
             message: 'Department access updated successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }

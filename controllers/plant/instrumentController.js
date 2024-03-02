@@ -81,9 +81,9 @@ const numberFields = [
     "Qty",
 ]
 
-module.exports.bulkAddInstruments = (req,res) => {
+module.exports.bulkAddInstruments = async (req,res) => {
     const instrument_sheet = req.file
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
 
     // determin the last 5 characters of the file name
     const fileExtension = instrument_sheet.filename.slice(-5)
@@ -96,21 +96,10 @@ module.exports.bulkAddInstruments = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-       
+    try {
         const workbook = new Excel.Workbook();
         await workbook.xlsx.readFile(instrument_sheet.path);
         fs.unlink(instrument_sheet.path, () => {})
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
 
         const worksheet = workbook.getWorksheet(1);
         
@@ -173,7 +162,7 @@ module.exports.bulkAddInstruments = (req,res) => {
                     instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '');
                 }
 
-                if (cellValue !== undefined && cellValue !== null) {
+                if (cellValue) {
                     data[key] = cellValue;
                 }
             }
@@ -208,18 +197,17 @@ module.exports.bulkAddInstruments = (req,res) => {
         return res.status(200).json({
             message: 'Instrument(s) added successfully'
         })
-    })
-    .catch(err => {
-        fs.unlink(instrument_sheet.path, (err) => {})
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.addInstrument = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.addInstrument = async (req,res) => {
+    const plantID = req.userData.plantID
     const TagNo = req.body.TagNo
     const Instrument = req.body.Instrument
     const Location = req.body.Location
@@ -245,7 +233,7 @@ module.exports.addInstrument = (req,res) => {
     // check if all the required fields are present
     for (let i = 0; i < requiredFields.length; i++) {
         const field = requiredFields[i];
-        if(req.body[field] === undefined || req.body[field] === null || req.body[field] === ""){
+        if(!req.body[field]|| req.body[field] === null || req.body[field] === ""){
             return res.status(400).json({
                 message: `${field} is required`
             })
@@ -267,7 +255,7 @@ module.exports.addInstrument = (req,res) => {
         }
 
         // if the value is empty, set validationError to true
-        if (value === undefined || value === null || value === "") {
+        if (!value || value === "") {
             validationError = true;
             res.status(400).json({
                 message: `${key} value can't be empty`
@@ -316,30 +304,7 @@ module.exports.addInstrument = (req,res) => {
         return;
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
-
+    try {
         // get the instrumentCode from the TagNo
         const instrumentCode = extractInstrumentCode(TagNo).trim()
 
@@ -394,17 +359,17 @@ module.exports.addInstrument = (req,res) => {
         return res.status(200).json({
             message: 'Instrument added successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.addInstrumentsModbusAddress = (req,res) => {
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
     const data = req.body.data
 
     // check if data is an array
@@ -460,22 +425,7 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
+    try {
         // get the local instruments json file
         const plantInstruments = require(`../../data/instruments/${plantID}.json`).data
 
@@ -503,17 +453,17 @@ module.exports.addInstrumentsModbusAddress = (req,res) => {
         return res.status(200).json({
             message: 'Modbus address added successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.updateInstrument = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.updateInstrument = async (req,res) => {
+    const plantID = req.userData.plantID
     const TagNo = req.body.TagNo
     const updates = req.body.updates
     const Body = updates
@@ -596,30 +546,7 @@ module.exports.updateInstrument = (req,res) => {
         return;
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
-
+    try {
         // get the instrumentCode from the TagNo
         const instrumentCode = extractInstrumentCode(TagNo).trim()
 
@@ -662,50 +589,27 @@ module.exports.updateInstrument = (req,res) => {
         return res.status(200).json({
             message: 'Instrument updated successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
-module.exports.deleteInstrument = (req,res) => {
-    const adminuid = req.userData.uid
+module.exports.deleteInstrument = async (req,res) => {
+    const plantID = req.userData.plantID
     const TagNo = req.params.TagNo
 
     // check if TagNo is present
-    if(TagNo === undefined || TagNo === null || TagNo === ""){
+    if(!TagNo){
         return res.status(400).json({
             message: "TagNo is required"
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
-
+    try {
         // get the instrumentCode from the TagNo
         const instrumentCode = extractInstrumentCode(TagNo).trim()
 
@@ -747,17 +651,17 @@ module.exports.deleteInstrument = (req,res) => {
         return res.status(200).json({
             message: 'Instrument deleted successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.addFilters = (req,res) => {
-    const adminuid = req.userData.uid
+    const plantID = req.userData.plantID
     const filters = req.body.filters
 
     // check if filters is an array
@@ -810,30 +714,7 @@ module.exports.addFilters = (req,res) => {
 
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
-
+    try {
         filters.map(async (filterObtained) => {
             const filterObtainedName = filterObtained.filterName
             const filterObtainedItems = filterObtained.filterItem
@@ -865,13 +746,13 @@ module.exports.addFilters = (req,res) => {
         return res.status(200).json({
             message: 'Filter added successfully'
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 /*
@@ -912,8 +793,7 @@ const filterObjectMaker = (instrument, filterName, filterItem) => {
 }
 
 module.exports.getFilters = async (req,res) => {
-    const adminuid = req.userData.uid
-    // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const categoryName = req.query.category
     const filterName = req.query.filterName
 
@@ -923,29 +803,7 @@ module.exports.getFilters = async (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
+    try {
         let data = []
         const filters = await firestore.collection(`plants/${plantID}/processFilterCategory`).get()
 
@@ -1022,13 +880,13 @@ module.exports.getFilters = async (req,res) => {
         return res.status(200).json({
             data: data
         })
-    })
-    .catch(err => {
-        console.log(err);
+    } catch (error) {
+        console.log(error);
         return res.status(500).json({
-            error: err
+            error: error
         })
-    })
+    }
+
 }
 
 /**
@@ -1040,9 +898,8 @@ module.exports.getFilters = async (req,res) => {
  * 5. I/O
  * 6. Category
  */
-module.exports.getInstrCategories = (req,res) => {
-    const adminuid = req.userData.uid
-    // const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+module.exports.getInstrCategories = async (req,res) => {
+    const plantID = req.userData.plantID
     const categoryName = req.query.category
     const instrument = req.query.instrument
     const location = req.query.location
@@ -1057,30 +914,7 @@ module.exports.getInstrCategories = (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin not found"
-            })
-        }
-
-        if(admin.get('accessLevel') !== 1){
-            return res.status(401).json({
-                message: "Only an admin can access this route"
-            })
-        }
-
-        const plantID = admin.data().plantID
-
-        const plant = await firestore.collection('plants').doc(plantID).get()
-
-        if(!plant.exists){
-            return res.status(400).json({
-                message: "Plant not found"
-            })
-        }
-        
+    try {
         let data = []
         if(categoryName){
             const categoriesWithInstruments = await firestore.collection(`plants/${plantID}/processInstrCategory`).where("categoryName", "==", categoryName).get()
@@ -1148,7 +982,13 @@ module.exports.getInstrCategories = (req,res) => {
             count: data.length,
             data: data
         })
-    })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+    
 }
 
 const searchQueries = async (queryObject, plantID) => {

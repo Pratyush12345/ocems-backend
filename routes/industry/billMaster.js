@@ -1,12 +1,38 @@
 const express = require('express')
 const router = express.Router()
 const billMasterController = require('../../controllers/industry/billMasterController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
+    write: ['Bill-Write']
+}
 
-router.get('/types', checkAuth, billMasterController.getMasterCopiesTypes)
-router.get('/', checkAuth, billMasterController.getMasterCopies)
-router.post('/create', checkAuth, billMasterController.createCopy)
-router.patch('/update', checkAuth, billMasterController.updateCopy)
-router.delete('/delete/:id', checkAuth, billMasterController.deleteCopy)
+const routes = [
+    {
+        method: 'get',
+        path: '/types',
+        controller: billMasterController.getMasterCopiesTypes,
+    },
+    {
+        method: 'get',
+        path: '/',
+        controller: billMasterController.getMasterCopies,
+    },
+    {
+        method: 'post',
+        path: '/create',
+        controller: billMasterController.createCopy,
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: billMasterController.updateCopy,
+    },
+    {
+        method: 'delete',
+        path: '/delete/:id',
+        controller: billMasterController.deleteCopy,
+    }
+]
 
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

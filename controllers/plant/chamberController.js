@@ -281,26 +281,10 @@ const sludgeCaclulator = async (plantID, sludge) => {
 }
 
 module.exports.getChamber = async (req, res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const chamberID = req.query.chamber
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "admin does not exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can get chamber"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         let query = firestore.collection('plants').doc(plantID).collection('Chamber')
         const data = []
         if (chamberID) {
@@ -357,17 +341,17 @@ module.exports.getChamber = async (req, res) => {
             chamber: data
         })
 
-    })
-    .catch(error => {
-        return res.status(500).send({
-            message: error.message
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.createChamber = async (req, res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const subchambers = req.body.subchamber
 
     const chamberError = chamberValidator(req.body)
@@ -388,22 +372,7 @@ module.exports.createChamber = async (req, res) => {
 
     const allTagNosLocal = new Set()
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "admin does not exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can create chamber"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         // fetch the local instruments from data/isntruments/{plantID}.json
         const allInstruments = require('../../data/instruments/' + plantID + '.json').data
 
@@ -448,18 +417,17 @@ module.exports.createChamber = async (req, res) => {
             message: "Chamber added successfully"
         })
 
-    })
-    .catch(error => {
-        return res.status(500).send({
-            message: error.message
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
-    })
+    }
 
 }
 
 module.exports.updateChamber = async (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const chamberID = req.query.chamber
     const subchambers = req.body.subchamber
     
@@ -488,22 +456,7 @@ module.exports.updateChamber = async (req,res) => {
 
     const allTagNosLocal = new Set()
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "admin does not exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can update chamber"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         // fetch the local instruments from data/isntruments/{plantID}.json
         const allInstruments = require('../../data/instruments/' + plantID + '.json').data
 
@@ -541,38 +494,21 @@ module.exports.updateChamber = async (req,res) => {
         return res.status(200).json({
             message: "Chamber updated successfully"
         })
-
-    })
-    .catch(error => {
-        return res.status(500).send({
-            message: error.message
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
-    })
+    }
 
 }
 
 module.exports.swapChamberPosition = async (req,res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const chamberID = req.body.chamberID
     const newPosition = req.body.newPosition
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "admin does not exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can update chamber"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         // get the chamber with the given chamberID
         const chamberGet = await firestore.collection(`plants/${plantID}/Chamber`).doc(chamberID).get()
 
@@ -608,36 +544,20 @@ module.exports.swapChamberPosition = async (req,res) => {
         return res.status(200).json({
             message: "Chamber updated successfully"
         })
-
-    })
-    .catch(error => {
-        return res.status(500).send({
-            message: error.message
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
-    })
+    }
+
 }
 
 module.exports.deleteChamber = async (req, res) => {
-    // const adminuid = req.userData.uid
-    const adminuid = "oYwIqg8WTbOxGRpCOM4v3zKkECn1"
+    const plantID = req.userData.plantID
     const chamberID = req.params.chamberID
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if (!admin.exists) {
-            return res.status(400).send({
-                message: "admin does not exist"
-            })
-        }
-
-        if (admin.get('accessLevel') !== 1) {
-            return res.status(400).send({
-                message: "Only admin can delete chamber"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
+    try {
         // check if the chamberID exists in the chamber collection
         const chamber = await firestore.collection('plants').doc(plantID).collection('Chamber').doc(chamberID).get()
 
@@ -676,12 +596,11 @@ module.exports.deleteChamber = async (req, res) => {
         return res.status(200).json({
             message: "Chamber deleted successfully"
         })
-
-    })
-    .catch(error => {
-        return res.status(500).send({
-            message: error.message
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
         })
-    })
+    }
 
 }

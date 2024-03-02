@@ -1,9 +1,12 @@
 const express = require('express')
 const router = express.Router()
 const instrumentController = require('../../controllers/plant/instrumentController')
-const checkAuth = require('../../middlewares/check-auth')
-const checkAdmin = require('../../middlewares/check-admin')
 const multer = require('multer')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Process-Read', 'Process-Write'],
+    write: ['Process-Write']
+}
 
 // in order for multer to work, make a directory using mkdir -p directroy_path
 const excelSheetStorage = multer({
@@ -19,14 +22,49 @@ const excelSheetStorage = multer({
 
 router.use('/modbus', require('./modbus'))
 
-router.get('/', checkAuth, instrumentController.getInstrCategories)
-// router.get('/', instrumentController.getInstrCategories)
-router.get('/filters', checkAuth, instrumentController.getFilters)
-router.post('/add/filters', checkAuth, checkAdmin, instrumentController.addFilters)
-router.post('/add/bulk', checkAuth, checkAdmin, excelSheetStorage, instrumentController.bulkAddInstruments)
-router.post('/add/modbus', checkAuth, instrumentController.addInstrumentsModbusAddress)
-router.post('/add', checkAuth, instrumentController.addInstrument)
-router.patch('/update', checkAuth, instrumentController.updateInstrument)
-router.delete('/delete/:TagNo', checkAuth, instrumentController.deleteInstrument)
+const routes = [
+    {
+        method: 'get',
+        path: '/',
+        controller: instrumentController.getInstrCategories
+    },
+    {
+        method: 'get',
+        path: '/filters',
+        controller: instrumentController.getFilters
+    },
+    {
+        method: 'post',
+        path: '/add/filters',
+        controller: instrumentController.addFilters
+    },
+    {
+        method: 'post',
+        path: '/add/bulk',
+        middleware: [excelSheetStorage],
+        controller: instrumentController.bulkAddInstruments
+    },
+    {
+        method: 'post',
+        path: '/add/modbus',
+        controller: instrumentController.addInstrumentsModbusAddress
+    },
+    {
+        method: 'post',
+        path: '/add',
+        controller: instrumentController.addInstrument
+    },
+    {
+        method: 'patch',
+        path: '/update',
+        controller: instrumentController.updateInstrument
+    },
+    {
+        method: 'delete',
+        path: '/delete/:TagNo',
+        controller: instrumentController.deleteInstrument
+    }
 
-module.exports = router
+]
+
+module.exports = defineRoutes(router, routes, departmentAccess)

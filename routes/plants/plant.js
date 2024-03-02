@@ -2,26 +2,74 @@ const express = require('express')
 const router = express.Router()
 const plantController = require('../../controllers/plant/plantController')
 const linkedAccountController = require('../../controllers/plant/linkedAccountController')
-const checkAuth = require('../../middlewares/check-auth')
+const defineRoutes = require('../../utils/routeFactory')
+const departmentAccess = {
+    read: ['Department-Read', 'Department-Write'],
+    write: ['Department-Write']
+}
 
 router.use('/instrument', require('./instrument'))
 router.use('/chamber', require('./chamber'))
 router.use('/alert', require('./alert'))
 router.use('/sludge', require('./sludge'))
 
-// Department Access routes
-router.get('/department', checkAuth, plantController.getDepartmentAccess)
-router.patch('/department/update', checkAuth, plantController.updateDepartmentAccess)
-router.delete('/department/delete', checkAuth, plantController.deleteDepartmentAccess)
+const routes = [
+    {
+        method: 'get',
+        path: '/department',
+        controller: plantController.getDepartmentAccess,
+    },
+    {
+        method: 'patch',
+        path: '/department/update',
+        controller: plantController.updateDepartmentAccess,
+    },
+    {
+        method: 'delete',
+        path: '/department/delete',
+        controller: plantController.deleteDepartmentAccess,
+    },
+    {
+        method: 'post',
+        path: '/create',
+        controller: plantController.createPlant,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/create/linkedac',
+        controller: linkedAccountController.createLinkedAccount,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/create/stakeholder',
+        controller: linkedAccountController.createStakeholder,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/accepttnc',
+        controller: linkedAccountController.acceptTnc,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    },
+    {
+        method: 'post',
+        path: '/addBankAccount',
+        controller: linkedAccountController.addBankDetails,
+        options: {
+            isOnlySuperAdminAccessAllowed: true
+        }
+    }
 
-// Plant routes
-router.get('/', plantController.getPlant)
-router.post('/create', plantController.createPlant)
+]
 
-// Payment routes
-router.post('/create/linkedac', linkedAccountController.createLinkedAccount)
-router.post('/create/stakeholder', linkedAccountController.createStakeholder)
-router.post('/accepttnc', linkedAccountController.acceptTnc)
-router.post('/addBankAccount', linkedAccountController.addBankDetails)
-
-module.exports = router
+module.exports = defineRoutes(router, routes, departmentAccess)

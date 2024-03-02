@@ -14,7 +14,6 @@ router.use('/superadmin', require('./users/superAdmin'))
 router.use('/inventory', require('./inventory/inventory'))
 router.use('/payments', require('./payments/payment'))
 router.use('/plant', require('./plants/plant'))
-router.use('/pdf', require('./pdf'))
 
 
 module.exports = router;
