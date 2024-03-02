@@ -24,7 +24,7 @@ module.exports.getMasterCopies = async (req,res) => {
     try {
         let query 
 
-        if(billMasterid!==undefined){
+        if(billMasterid){
             query = await firestore.collection(`plants/${plantID}/billMasterCopy`).doc(billMasterid).get()
 
             if(!query.exists){
@@ -63,63 +63,6 @@ module.exports.getMasterCopies = async (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform billing operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-        const billMasterid = req.query.id
-        let query 
-
-        if(billMasterid!==undefined){
-            query = await firestore.collection(`plants/${plantID}/billMasterCopy`).doc(billMasterid).get()
-
-            if(!query.exists){
-                return res.status(404).json({
-                    message: "Bill Master copy not found"
-                })
-            }
-
-            return res.status(200).json({
-                billMasterCopies: [
-                    {
-                        id: billMasterid,
-                        data: query.data()
-                    }
-                ]
-            })
-        } 
-        
-        query = await firestore.collection(`plants/${plantID}/billMasterCopy`).get()
-
-        const billMasters = [];
-        query.forEach((doc) => {
-            billMasters.push({
-                id: doc.id,
-                data: doc.data(),
-            });
-        });
-        
-        return res.status(200).json({
-            billMasterCopies: billMasters
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
-        })
-    })
 }
 
 const requiredFieldsMasterCopy = [

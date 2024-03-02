@@ -162,7 +162,7 @@ module.exports.bulkAddInstruments = async (req,res) => {
                     instrumentName = instrumentCodesData[instrumentCode].replace(/\s/g, '');
                 }
 
-                if (cellValue !== undefined && cellValue !== null) {
+                if (cellValue) {
                     data[key] = cellValue;
                 }
             }
@@ -233,7 +233,7 @@ module.exports.addInstrument = async (req,res) => {
     // check if all the required fields are present
     for (let i = 0; i < requiredFields.length; i++) {
         const field = requiredFields[i];
-        if(req.body[field] === undefined || req.body[field] === null || req.body[field] === ""){
+        if(!req.body[field]|| req.body[field] === null || req.body[field] === ""){
             return res.status(400).json({
                 message: `${field} is required`
             })
@@ -255,7 +255,7 @@ module.exports.addInstrument = async (req,res) => {
         }
 
         // if the value is empty, set validationError to true
-        if (value === undefined || value === null || value === "") {
+        if (!value || value === "") {
             validationError = true;
             res.status(400).json({
                 message: `${key} value can't be empty`

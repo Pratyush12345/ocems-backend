@@ -150,16 +150,22 @@ module.exports.createNotice = async (req,res) => {
             
             const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
             const fcm_token = industry.get('fcm_token')
-
-            const message = {
-                notification: {
-                    title: "New Notice",
-                    body: `A new notice has been issued by the plant.`
-                },
-                token: fcm_token
+            
+            if(fcm_token){
+                try {
+                    const message = {
+                        notification: {
+                            title: "New Notice",
+                            body: `A new notice has been issued by the plant.`
+                        },
+                        token: fcm_token
+                    }
+        
+                    await getMessaging().send(message)
+                } catch (error) {
+                    console.log("Notification not sent");
+                }
             }
-
-            await getMessaging().send(message)
         }
 
         // delete the files from the uploads folder

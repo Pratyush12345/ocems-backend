@@ -21,7 +21,7 @@ module.exports.getItems = async (req,res) => {
         let itemsQuery
 
         // itemsQuery definition
-        if(itemid!==undefined){
+        if(itemid){
             itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).doc(itemid).get()
 
             if(!itemsQuery.exists){
@@ -33,7 +33,7 @@ module.exports.getItems = async (req,res) => {
                     items: itemsQuery.data()
                 })
             }
-        } else if(itemType!==undefined){
+        } else if(itemType){
             if(itemType==="0"){
                 itemsQuery = await firestore.collection(`plants/${plantID}/inventory`).where('itemType', '==', "Consumable").get()
             } else if(itemType==="1") {

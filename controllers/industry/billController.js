@@ -35,7 +35,7 @@ module.exports.getBills = async (req,res) => {
         }
 
         let query = firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills')
-        if(billid!==undefined){
+        if(billid){
             query = query.doc(billid)
 
             const bill = await query.get()
@@ -186,7 +186,7 @@ module.exports.createBill = async (req, res) => {
 
     try {
         // goods validation
-        if(goods===undefined || goods.length<1){
+        if(!goods || goods.length<1){
             return res.status(400).json({
                 message: "Please provide at least one good"
             })
@@ -352,28 +352,33 @@ module.exports.createBill = async (req, res) => {
             amount: amount
         })
 
-        // send notification to industry
-        const fcm_token = industry.get('fcm_token')
+        try {
+            // send notification to industry
+            const fcm_token = industry.get('fcm_token')
+            
+            const message = {
+                data: {
+                    title: "New Bill",
+                    body: `A new bill has been issued by the plant. Check it out now!`,
+                    industryId: industryid,
+                    billid: bill.id
+                },
+                token: fcm_token
+            }
+            
+            await getMessaging().send(message)
 
-        const message = {
-            data: {
-                title: "New Bill",
-                body: `A new bill has been issued by the plant. Check it out now!`,
-                industryId: industryid,
-                billid: bill.id
-            },
-            token: fcm_token
+        } catch (error) {
+            console.log("Notification not sent!");
         }
 
-        await getMessaging().send(message)
-        
         return res.status(200).json({
             message: "Bill created successfully"
         })
     } catch (error) {
         console.log(error);
         return res.status(500).json({
-            error: error
+            error: error.message
         })
     }
 }
@@ -428,18 +433,24 @@ module.exports.uploadPaymentReciept = async (req,res) => {
             const data = user.data()
             const fcm_token = data.fcm_token
             const departmentAccess = data.departmentAccess
-
-            // if the departmentAccess array is undefined and includes the required access array then send notification
-            if((data.accessLevel === 1) || (departmentAccess!==undefined && departmentAccess.some(r=> requiredAccess.includes(r)))){
-                const message = {
-                    notification: {
-                        title: "New Bill Payment",
-                        body: `A new bill payment receipt has been uploaded by the industry.`
-                    },
-                    token: fcm_token
+            
+            if(fcm_token){
+                try {
+                    // if the departmentAccess array is undefined and includes the required access array then send notification
+                    if((data.accessLevel === 1) || (departmentAccess && departmentAccess.some(r=> requiredAccess.includes(r)))){
+                        const message = {
+                            notification: {
+                                title: "New Bill Payment",
+                                body: `A new bill payment receipt has been uploaded by the industry.`
+                            },
+                            token: fcm_token
+                        }
+        
+                        await getMessaging().send(message)
+                    }
+                } catch (error) {
+                    console.log("Notification not sent!");
                 }
-
-                await getMessaging().send(message)
             }
         })
 
@@ -547,58 +558,6 @@ module.exports.deleteCopy = async (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can perform billing operations"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
-        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-
-        if(!industry.exists){
-            return res.status(404).json({
-                message: "Industry Not found"
-            })
-        }
-        
-        const bill = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).get()
-
-        if(!bill.exists){
-            return res.status(404).json({
-                message: "Bill not found"
-            })
-        }
-
-        // delete the reciept from firebase storage
-        const filePath = bill.get('paymentRecieptPath')
-
-        if(filePath){
-            await bucket.file(filePath).delete()
-        }
-
-        // delete bill
-        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).collection('bills').doc(billid).delete()
-        
-        return res.status(200).json({
-            message: "Bill successfully deleted"
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
-        })
-    })
 }
 
 const compile = async function (templateName, data) {
@@ -776,7 +735,9 @@ module.exports.downloadBill = async (req,res) => {
 
         const content = await compile('bill', data); 
 
-        const browser = await puppeteer.launch();
+        const browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });        
         const page = await browser.newPage();
         await page.setContent(content);
         await page.emulateMediaType('screen');
@@ -805,7 +766,6 @@ module.exports.downloadBill = async (req,res) => {
 }
 
 /*
-
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
     const content = await compile('bill', data)
@@ -821,16 +781,5 @@ module.exports.downloadBill = async (req,res) => {
     await browser.close();
 
     fs.unlinkSync(filepath)
-
-        Error: Failed to launch the browser process!
-0|app  | /root/.cache/puppeteer/chrome/linux-121.0.6167.85/chrome-linux64/chrome: error while loading shared libraries: libatk-1.0.so.0: cannot open shared object file: No such file or directory
-0|app  | TROUBLESHOOTING: https://pptr.dev/troubleshooting
-0|app  |     at Interface.onClose (/root/ocems/node_modules/@puppeteer/browsers/lib/cjs/launch.js:267:24)
-0|app  |     at Interface.emit (node:events:531:35)
-0|app  |     at Interface.close (node:internal/readline/interface:527:10)
-0|app  |     at Socket.onend (node:internal/readline/interface:253:10)
-0|app  |     at Socket.emit (node:events:531:35)
-0|app  |     at endReadableNT (node:internal/streams/readable:1696:12)
-0|app  |     at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
 
 */

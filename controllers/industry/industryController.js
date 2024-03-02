@@ -17,7 +17,7 @@ const mailChecker = async (email) => {
         // checks in authenticated emails
         const authEmailCheck = await firebase.auth().getUserByEmail(email)
 
-        if(authEmailCheck.uid!==undefined){
+        if(authEmailCheck.uid){
             return {
                 code: 409,
                 message: "Email already exists"
@@ -89,6 +89,7 @@ module.exports.signUp = async (req,res) => {
             remark: req.body.remark,
             totalEffluentTradeAndUtility: req.body.totalEffluentTradeAndUtility,
             unitId: req.body.unitId,
+            fcm_token: ""
         })
 
         // add industry to industriesRequest collection for admin approvals
@@ -101,16 +102,23 @@ module.exports.signUp = async (req,res) => {
         // send notification to admin
         const admin = await firestore.collection('users').doc(plantCheck.get('selectedAdmin')).get()
         const fcm_token = admin.get('fcm_token')
-
-        const message = {
-            notification: {
-                title: "New Industry Request",
-                body: `A new industry has requested to join your plant.`
-            },
-            token: fcm_token
+        
+        if(fcm_token){
+            try {
+                const message = {
+                    notification: {
+                        title: "New Industry Request",
+                        body: `A new industry has requested to join your plant.`
+                    },
+                    token: fcm_token
+                }
+        
+                await firebase.messaging().send(message)
+                
+            } catch (error) {
+                console.log("Notification not sent");
+            }    
         }
-
-        await firebase.messaging().send(message)
         
         // send response for request sent for review
         return res.status(200).json({
@@ -271,70 +279,6 @@ module.exports.approveRequest = async (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        // Error checking
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can approve industries"
-            })
-        }
-
-        // plant check for admin and industry
-        const industryRequest = await firestore.collection('industriesRequest').doc(industryuid).get()
-        const plantID = admin.get('plantID')
-
-        if(industryRequest.get('plantID') !== plantID){
-            return res.status(401).json({
-                message: "Admin doesn't belong to the industries' selected plant"
-            })
-        }
-
-        // create new industry firebase account
-        const date = new Date()
-        const password = `${industryuid}_${date.toISOString().replace(/\s+/g, '')}`
-
-        const newIndustryAccount = await firebase.auth().createUser({
-            email: industryRequest.get('email'),
-            password: password,
-            emailVerified: false,
-            disabled: false
-        })
-
-        // set custom claim for plant id on industry
-        await firebase.auth().setCustomUserClaims(newIndustryAccount.uid, {
-            plantID: plantID,
-            role: "industry",
-            industryid: industryuid
-        })
-
-        // update industry approved field in plant's industry collection
-        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryuid).update({
-            approved: true
-        })
-
-        // remove industry request from the industriesRequest collection
-        await firestore.collection('industriesRequest').doc(industryuid).delete()
-
-        // send email with credentials
-        await Email.sendCredentialMail("Industry", newIndustryAccount.email, password)
-
-        return res.status(200).json({
-            message: "Industry approved and credential mail sent"
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
-        })
-    })
 }
 
 /**

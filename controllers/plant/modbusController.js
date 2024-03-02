@@ -175,22 +175,30 @@ module.exports.addReport = async (plantID, address, timestamp, value) => {
                                 `Reading above the upper limit with value: ${value}`
 
                             if(value < lowerLimit || value > upperLimit){
-                                // send notification to plant admin
-                                const message = {
-                                    data: {
-                                        title: "Instrument flow alert!!!",
-                                        body: messageText,
-                                        instrument: TagNo,
-                                        value: value,
-                                        timestamp: timestamp,
-                                        lowerLimit: lowerLimit,
-                                        upperLimit: upperLimit,
-                                        address: address
-                                    },
-                                    token: fcm_token
-                                }
 
-                                await getMessaging().send(message)
+                                if(fcm_token){
+                                    try {
+                                        // send notification to plant admin
+                                        const message = {
+                                            data: {
+                                                title: "Instrument flow alert!!!",
+                                                body: messageText,
+                                                instrument: TagNo,
+                                                value: value,
+                                                timestamp: timestamp,
+                                                lowerLimit: lowerLimit,
+                                                upperLimit: upperLimit,
+                                                address: address
+                                            },
+                                            token: fcm_token
+                                        }
+        
+                                        await getMessaging().send(message)
+                                        
+                                    } catch (error) {
+                                        console.log("Notification not sent");
+                                    }
+                                }
                             }
 
                             await firestore.collection(`plants/${plantID}/InstrumentAlerts`).add({

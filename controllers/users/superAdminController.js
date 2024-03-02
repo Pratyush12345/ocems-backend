@@ -28,6 +28,7 @@ module.exports.signUp = async (req, res) => {
             roleName: "superAdmin",
             phoneNo: "",
             dateAdded: superAdmin.metadata.creationTime,
+            fcm_token: ""
         })
         return newsuperAdmin
     })
