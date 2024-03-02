@@ -352,24 +352,27 @@ module.exports.createBill = async (req, res) => {
             amount: amount
         })
 
-        try {
-            // send notification to industry
-            const fcm_token = industry.get('fcm_token')
-            
-            const message = {
-                data: {
-                    title: "New Bill",
-                    body: `A new bill has been issued by the plant. Check it out now!`,
-                    industryId: industryid,
-                    billid: bill.id
-                },
-                token: fcm_token
-            }
-            
-            await getMessaging().send(message)
+        // send notification to industry
+        const fcm_token = industry.get('fcm_token')
 
-        } catch (error) {
-            console.log("Notification not sent!");
+        if(fcm_token){
+            try {
+                
+                const message = {
+                    data: {
+                        title: "New Bill",
+                        body: `A new bill has been issued by the plant. Check it out now!`,
+                        industryId: industryid,
+                        billid: bill.id
+                    },
+                    token: fcm_token
+                }
+                
+                await getMessaging().send(message)
+    
+            } catch (error) {
+                console.log("Notification not sent!");
+            }
         }
 
         return res.status(200).json({
