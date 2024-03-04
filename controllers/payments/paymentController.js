@@ -30,7 +30,6 @@ module.exports.createOrder = async (req, res) => {
         notes
     })
     .then(order => {
-        console.log(order)
         return res.status(200).json(order)
     })
     .catch(err => {

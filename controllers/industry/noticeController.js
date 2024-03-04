@@ -60,6 +60,36 @@ module.exports.getNotices = async (req,res) => {
             notices = notices.filter(notice => notice.id === noticeid)
         }
 
+        const promise = notices.map(async notice => {
+            const industries = notice.data.industries
+
+            for (let i = 0; i < industries.length; i++) {
+                const industryid = industries[i];
+                
+                const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+
+                if(industry.exists){
+                    notice.data.industries[i] = {
+                        id: industry.id,
+                        data: {
+                            name: industry.get('companyName'),
+                            address: industry.get('address')
+                        }
+                    }
+                } else {
+                    notice.data.industries[i] = {
+                        id: industryid,
+                        data: {
+                            name: "Industry not found",
+                            address: "Industry not found"
+                        }
+                    }
+                }
+            }
+        })
+
+        await Promise.all(promise)
+
         return res.status(200).json({
             notices: notices
         })

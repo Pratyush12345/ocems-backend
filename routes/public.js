@@ -4,6 +4,9 @@ const industryController = require('../controllers/industry/industryController')
 const plantController = require('../controllers/plant/plantController');
 const superAdminController = require('../controllers/users/superAdminController');
 
+// PAYMENT Routes
+router.use('/payments', require('./payments/payment'))
+
 // INDUSTRY Routes
 router.post('/industry/signup', industryController.signUp);
 
