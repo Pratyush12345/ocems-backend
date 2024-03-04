@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 
-router.get("/", (req, res)=>{
+router.get("/public", (req, res)=>{
     res.status(200).send("Ocems Server")
 })
+
 router.use('/user', require('./users/user'))
 router.use('/admin', require('./users/admin'))
 router.use('/officer', require('./users/officer'))
