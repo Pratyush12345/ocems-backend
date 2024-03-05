@@ -89,7 +89,9 @@ module.exports.signUp = async (req,res) => {
             remark: req.body.remark,
             totalEffluentTradeAndUtility: req.body.totalEffluentTradeAndUtility,
             unitId: req.body.unitId,
-            fcm_token: ""
+            fcm_token: "",
+            isActive: 1,
+            apiID: req.body.apiID ? req.body.apiID : null
         })
 
         // add industry to industriesRequest collection for admin approvals
@@ -131,6 +133,35 @@ module.exports.signUp = async (req,res) => {
             error: err
         })
     })
+}
+
+module.exports.getIndustryName = async (req,res) => {
+    const plantID = req.userData.plantID
+    const industryid = req.params.uid
+
+    try {
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry not found"
+            })
+        }
+
+        return res.status(200).json({
+            industry: {
+                id: industry.id,
+                data: {
+                    name: industry.get('companyName'),
+                    address: industry.get('address')
+                }
+            }
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 }
  
 // returns all industries of a plant using admin's id

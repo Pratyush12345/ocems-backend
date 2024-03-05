@@ -7,7 +7,7 @@ module.exports.signUp = async (req, res) => {
     const email = req.body.email
     const phoneNo = req.body.phoneNo
     const postName = req.body.postName
-    const plantID = req.body.plantID
+    const plantID = req.userData.plantID
     const superAdminId = req.userData.uid
     
     const requiredFields = ["name", "email", "phoneNo", "postName", "plantID"]
@@ -45,73 +45,50 @@ module.exports.signUp = async (req, res) => {
         })
     }
 
-    firestore.collection('users').doc(superAdminId).get()
-    .then(async user => {
-        if(user.exists && user.get('roleName') === "superAdmin"){
-            const date = new Date()
-            const newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Admin_1_${date.toISOString().replace(/\s+/g, '')}`
-            
-            const plant = await firestore.collection('plants').doc(plantID).get()
+    try {
+        const date = new Date()
+        const newPassword = `${name.replace(/\s+/g, '').toLowerCase().substring(0,3)}_${Math.floor(Math.random() * 900) + 100}_${date.getMilliseconds()}`
 
-            if(!plant.exists){
-                return res.status(404).json({
-                    message: `Plant ${plantID} not found`
-                })
-            }
-
-            firebase.auth().createUser({
-                email: email,
-                password: newPassword,
-                emailVerified: false,
-                disabled: false
-            })
-            .then(async admin => {
-                // set custom user claims
-                await firebase.auth().setCustomUserClaims(admin.uid, {
-                    role: "admin",
-                    accessLevel: 1,
-                    plantID: plantID
-                })
-
-                const newAdmin = await firestore.collection('users').doc(admin.uid).set({
-                    accessLevel: 1,
-                    isSuspended: false,
-                    mailID: email, 
-                    name: name,
-                    postName: postName,
-                    roleName: "Admin",
-                    plantID: plantID,
-                    phoneNo: phoneNo,
-                    dateAdded: admin.metadata.creationTime,
-                    fcm_token: ""
-                })
-                return newAdmin
-            })
-            .then(async newAdmin => {
-                await Email.sendCredentialMail("Admin", email, newPassword)
-
-                return res.status(201).json({
-                    message: "Admin created successfully"
-                })
-            })
-            .catch(err => {
-                console.log(err);
-                return res.status(500).json({
-                    error: err
-                })
-            })
-        } else {
-            return res.status(401).json({
-                message: "Only a Super Admin can add Admins"
-            })
-        }
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
+        const admin = await firebase.auth().createUser({
+            email: email,
+            password: newPassword,
+            emailVerified: false,
+            disabled: false
         })
-    })
+        
+        // set custom user claims
+        await firebase.auth().setCustomUserClaims(admin.uid, {
+            role: "admin",
+            accessLevel: 1,
+            plantID: plantID
+        })
+
+        await firestore.collection('users').doc(admin.uid).set({
+            accessLevel: 1,
+            isSuspended: false,
+            mailID: email, 
+            name: name,
+            postName: postName,
+            roleName: "Admin",
+            plantID: plantID,
+            phoneNo: phoneNo,
+            dateAdded: admin.metadata.creationTime,
+            fcm_token: ""
+        })
+
+        await Email.sendCredentialMail("Admin", email, newPassword)
+
+        return res.status(201).json({
+            message: "Admin created successfully"
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
 }
 
 module.exports.getAdmin = (req,res) => {
