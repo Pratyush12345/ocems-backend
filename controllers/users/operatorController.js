@@ -76,7 +76,7 @@ module.exports.signUp = async (req, res) => {
                 }
 
                 const date = new Date()
-                newPassword = `${name.replace(/\s+/g, '').toLowerCase()}_${email}_Operator_3_${date.toISOString().replace(/\s+/g, '')}`
+                newPassword = `${name.replace(/\s+/g, '').toLowerCase().substring(0,3)}_${Math.floor(Math.random() * 900) + 100}_${date.getMilliseconds()}`
 
                 const operator = await firebase.auth().createUser({
                     email: email,

@@ -22,6 +22,11 @@ const routes = [
     },
     {
         method: 'get',
+        path: '/name/:uid',
+        controller: industryController.getIndustryName
+    },
+    {
+        method: 'get',
         path: '/requests',
         controller: industryController.getUnapprovedRequests,
     },

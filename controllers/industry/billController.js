@@ -348,6 +348,7 @@ module.exports.createBill = async (req, res) => {
             goods: goods,
             isPaid: false,
             paymentRecieptLink: "",
+            paymentRecieptStatus: 0,
             quotationNo: newFullQuotaionNo,
             amount: amount
         })
@@ -417,6 +418,7 @@ module.exports.uploadPaymentReciept = async (req,res) => {
             datePaid: new Date().toUTCString(),
             paymentRecieptLink: fileUrl[0],
             paymentRecieptPath: uploadedFile[0].name,
+            paymentRecieptStatus: 1,
         })
 
         // add the reciept for approval from admin
@@ -502,7 +504,8 @@ module.exports.processBill = async (req,res) => {
         const isPaid = decision === "approve" ? true : false
         await firestore.collection(`plants/${plantID}/industryUsers`).doc(request.get('industryid')).collection('bills').doc(request.get('billid')).update({
             dateUpdated: new Date().toUTCString(),
-            isPaid: isPaid
+            isPaid: isPaid,
+            paymentRecieptStatus: isPaid ? 2 : 3,
         })
         
         // delete the request
