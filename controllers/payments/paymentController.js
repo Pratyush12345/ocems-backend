@@ -25,9 +25,8 @@ module.exports.createOrder = async (req, res) => {
 
     const plantID = notes.plantId
 
-    // TODO: Add correct plantID
     try {
-        const plant = await firestore.collection('plants').doc("P1").get()
+        const plant = await firestore.collection('plants').doc(plantID).get()
         if (!plant.exists) {
             return res.status(404).json({
                 message: 'Plant not found'
