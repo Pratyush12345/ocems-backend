@@ -23,21 +23,57 @@ const razorpay = new Razorpay({
 module.exports.createOrder = async (req, res) => {
     const { amount, currency, receipt, notes } = req.body
 
-    razorpay.orders.create({
-        amount,
-        currency,
-        receipt,
-        notes
-    })
-    .then(order => {
-        return res.status(200).json(order)
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
+    const plantID = notes.plantId
+
+    // TODO: Add correct plantID
+    try {
+        const plant = await firestore.collection('plants').doc("P1").get()
+        if (!plant.exists) {
+            return res.status(404).json({
+                message: 'Plant not found'
+            })
+        }
+
+        const razorpayAccountDetails = plant.get('razorpayAccountDetails')
+
+        if (!razorpayAccountDetails) {
+            return res.status(404).json({
+                message: 'Razorpay Account Details not found'
+            })
+        }
+
+        const linkedAccountId = razorpayAccountDetails.id
+
+        if (!linkedAccountId) {
+            return res.status(404).json({
+                message: 'Linked Account ID not found'
+            })
+        }
+
+        const payment = await razorpay.orders.create({
+            amount: amount,
+            currency: currency,
+            receipt: receipt,
+            notes: notes,
+            transfers: [
+                {
+                    account: linkedAccountId,
+                    amount: amount,
+                    currency: "INR",
+                    on_hold: 0
+                }
+            ]
         })
-    })
+
+        return res.status(200).json(payment)
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
 }
 
 module.exports.verifyPayment = async (req, res) => {
