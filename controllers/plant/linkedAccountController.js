@@ -49,10 +49,8 @@ module.exports.createLinkedAccount = async (req,res) => {
     const state = req.body.state
     const postal_code = req.body.postal_code
     const country = req.body.country
-    const pan = req.body.pan
-    const gst = req.body.gst
     // const notes = req.body.notes
-    const plantID = req.userData.plantID
+    const plantID = req.body.plantID
 
     for (let i = 0; i < linkedAcReqFields.length; i++) {
         const element = linkedAcReqFields[i];
@@ -99,20 +97,6 @@ module.exports.createLinkedAccount = async (req,res) => {
         return
     }
 
-    // create a check for gst to be 15 characters long
-    if(gst.length !== 15) {
-        return res.status(400).json({
-            message: 'GST must be 15 characters long'
-        })
-    }
-
-    // create a check for pan to be 10 characters long
-    if(pan.length !== 10) {
-        return res.status(400).json({
-            message: 'PAN must be 10 characters long'
-        })
-    }
-
     // create a check for phone to be 10 characters long
     if(phone.length !== 10) {
         return res.status(400).json({
@@ -151,9 +135,9 @@ module.exports.createLinkedAccount = async (req,res) => {
             })
         }
 
-        const razorpayLACid = plant.data().razorpayAccountDetails.id
-
-        if(razorpayLACid !== undefined) {
+        const razorpayLACid = plant.get('razorpayAccountDetails').id
+ 
+        if(razorpayLACid) {
             return res.status(400).json({
                 message: 'Plant already has a linked account'
             })
@@ -207,7 +191,7 @@ module.exports.createLinkedAccount = async (req,res) => {
         await firestore.collection('plants').doc(plantID).update({
             razorpayAccountDetails: {
                 id: razorpayLAC.data.id,
-                status: razorpayLAC.data.activation_status,
+                status: razorpayLAC.data.status,
                 reference_id: razorpayLAC.data.reference_id,
             }
         })
@@ -216,15 +200,15 @@ module.exports.createLinkedAccount = async (req,res) => {
             message: "Linked account created successfully"
         })
     } catch (error) {
-        if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
+        console.log(error);
+        if(error.response?.data?.error?.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
-                message: err.response.data
+                message: error.response.data
             })
         }
         else {
-            console.log(err);
             return res.status(500).json({
-                error: err
+                error: error
             })
         }
     }
@@ -233,7 +217,7 @@ module.exports.createLinkedAccount = async (req,res) => {
 
 module.exports.createStakeholder = async (req,res) => {
     const stakeholder = req.body.stakeholder
-    const plantID = req.userData.plantID
+    const plantID = req.body.plantID
 
     if(!stakeholder) {
         return res.status(400).json({
@@ -320,16 +304,22 @@ module.exports.createStakeholder = async (req,res) => {
     try {
         const plant = await firestore.collection('plants').doc(plantID).get()
 
+        if(!plant.exists) {
+            return res.status(400).json({
+                message: 'Plant does not exist'
+            })
+        }
+
         const razorpayLACid = plant.data().razorpayAccountDetails.id
 
-        if(razorpayLACid === undefined) {
+        if(!razorpayLACid) {
             return res.status(400).json({
                 message: 'Please create a razorpay linked account first'
             })
         }
 
         const LAC = await axios({
-            method: 'POST',
+            method: 'GET',
             url: `https://api.razorpay.com/v2/accounts/${razorpayLACid}`,
             auth: {
                 username: process.env.RAZORPAY_KEY_ID,
@@ -337,7 +327,7 @@ module.exports.createStakeholder = async (req,res) => {
             }
         })
 
-        if(LAC.notes.plantID !== plantID) {
+        if(LAC.data.notes.plantID !== plantID) {
             return res.status(400).json({
                 message: 'PlantID does not match with the Linked Account'
             })
@@ -356,9 +346,15 @@ module.exports.createStakeholder = async (req,res) => {
                 addresses: stakeholder.addresses,
                 kyc: stakeholder.kyc,
                 notes: stakeholder.notes
+            },
+            headers: {
+                'Content-type': 'application/json'
             }
         })
 
+        console.log(stakeholderAC);
+
+        // TODO: Issue in updating stakeholder in firestore
         await firestore.collection('plants').doc(plantID).update({
             stakeholder: {
                 rzpid: stakeholderAC.data.id, // razorpay stakeholder id
@@ -384,7 +380,7 @@ module.exports.createStakeholder = async (req,res) => {
 
 module.exports.acceptTnc = async (req,res) => {
     const tncaccepted = req.body.tncaccepted
-    const plantID = req.userData.plantID
+    const plantID = req.body.plantID
 
     // create a check for tncaccepted to be boolean
     if(typeof tncaccepted !== 'boolean') {
@@ -403,15 +399,16 @@ module.exports.acceptTnc = async (req,res) => {
         }
 
         const razorpayLACid = plant.data().razorpayAccountDetails.id
+        const razorpayLACRefernceID = plant.data().razorpayAccountDetails.reference_id
 
-        if(razorpayLACid === undefined) {
+        if(!razorpayLACid) {
             return res.status(400).json({
                 message: 'Please create a razorpay linked account first'
             })
         }
 
         const LAC = await axios({
-            method: 'POST',
+            method: 'GET',
             url: `https://api.razorpay.com/v2/accounts/${razorpayLACid}`,
             auth: {
                 username: process.env.RAZORPAY_KEY_ID,
@@ -419,7 +416,7 @@ module.exports.acceptTnc = async (req,res) => {
             }
         })
 
-        if(LAC.notes.plantID !== plantID) {
+        if(LAC.data.notes.plantID !== plantID) {
             return res.status(400).json({
                 message: 'PlantID does not match with the Linked Account'
             })
@@ -437,10 +434,14 @@ module.exports.acceptTnc = async (req,res) => {
                 tnc_accepted: true
             }
         })    
+        console.log(TNC);
         
         await firestore.collection('plants').doc(plantID).update({
             razorpayAccountDetails: {
+                id: razorpayLACid,
                 status: TNC.data.activation_status,
+                reference_id: razorpayLACRefernceID,
+                productid: TNC.data.id,
             }
         })
 
@@ -457,8 +458,9 @@ module.exports.acceptTnc = async (req,res) => {
                 message: 'TNC not accepted'
             })
         }
-    } catch (error) {
-        if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
+    } catch (err) {
+        console.log(err);
+        if(err.response?.data?.error?.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
                 message: err.response.data.error.description,
                 data: err.response.data
@@ -481,7 +483,7 @@ module.exports.addBankDetails = async (req,res) => {
     const bankName = req.body.bankName
     const beneficiaryName = req.body.beneficiaryName
     const tncaccepted = req.body.tncaccepted
-    const plantID = req.userData.plantID
+    const plantID = req.body.plantID
 
     for (let i = 0; i < bankDetailsReqFields.length; i++) {
         const element = bankDetailsReqFields[i];
@@ -505,31 +507,24 @@ module.exports.addBankDetails = async (req,res) => {
         }
 
         if(bankDetailsReqFields.includes(key)) {
-            if(typeof req.body[key] !== 'string') {
-                validationError = true
-                res.status(400).json({
-                    message: `${key} must be a string`
-                })
-                return
+            if(bankBooleanReqFields.includes(key)) {
+                if(typeof req.body[key] !== 'boolean') {
+                    validationError = true
+                    res.status(400).json({
+                        message: `${key} must be a boolean`
+                    })
+                    return
+                }
+            } else {
+                if(typeof req.body[key] !== 'string') {
+                    validationError = true
+                    res.status(400).json({
+                        message: `${key} must be a string`
+                    })
+                    return
+                }
             }
 
-            if(!req.body[key].trim()) {
-                validationError = true
-                res.status(400).json({
-                    message: `${key} cannot be empty`
-                })
-                return
-            }
-        }
-
-        if(bankBooleanReqFields.includes(key)) {
-            if(typeof req.body[key] !== 'boolean') {
-                validationError = true
-                res.status(400).json({
-                    message: `${key} must be a boolean`
-                })
-                return
-            }
         }
 
     })
@@ -554,23 +549,32 @@ module.exports.addBankDetails = async (req,res) => {
             })
         }
 
+        console.log(plant.data());
         const razorpayLACid = plant.data().razorpayAccountDetails.id
         const stakeholderACid = plant.data().stakeholder.rzpid
+        const productid = plant.data().razorpayAccountDetails.productid
+        const reference_id = plant.data().razorpayAccountDetails.reference_id
 
-        if(razorpayLACid === undefined) {
+        if(!razorpayLACid) {
             return res.status(400).json({
                 message: 'Please create a razorpay linked account first'
             })
         }
 
-        if(stakeholderACid === undefined) {
+        if(!stakeholderACid) {
             return res.status(400).json({
                 message: 'Please create a stakeholder first'
             })
         }
 
+        if(!productid) {
+            return res.status(400).json({
+                message: 'Please accept the TNC first'
+            })
+        }
+
         const LAC = await axios({
-            method: 'POST',
+            method: 'GET',
             url: `https://api.razorpay.com/v2/accounts/${razorpayLACid}`,
             auth: {
                 username: process.env.RAZORPAY_KEY_ID,
@@ -578,15 +582,15 @@ module.exports.addBankDetails = async (req,res) => {
             }
         })
 
-        if(LAC.notes.plantID !== plantID) {
+        if(LAC.data.notes.plantID !== plantID) {
             return res.status(400).json({
                 message: 'PlantID does not match with the Linked Account'
             })
         }
 
         const rzpBankDetails = await axios({
-            method: 'POST',
-            url: `https://api.razorpay.com/v2/accounts/${razorpayLACid}/products`,
+            method: 'PATCH',
+            url: `https://api.razorpay.com/v2/accounts/${razorpayLACid}/products/${productid}`,
             auth: {
                 username: process.env.RAZORPAY_KEY_ID,
                 password: process.env.RAZORPAY_KEY_SECRET
@@ -600,7 +604,9 @@ module.exports.addBankDetails = async (req,res) => {
                 tnc_accepted: tncaccepted
             }
         })    
-                               
+        
+        console.log(rzpBankDetails);
+        
         await firestore.collection('plants').doc(plantID).update({
             bankAccountNo: bankAccountNo,
             bankBranchAddress: bankBranchAddress,
@@ -608,7 +614,10 @@ module.exports.addBankDetails = async (req,res) => {
             bankName: bankName,
             beneficiaryName: beneficiaryName,
             razorpayAccountDetails: {
-                status: rzpBankDetails.data.activation_status,
+                id: razorpayLACid,
+                status: rzpBankDetails.data.ctivation_status,
+                reference_id: razorpayLACRefernceID,
+                productid: productid
             }
         })
 
@@ -622,8 +631,9 @@ module.exports.addBankDetails = async (req,res) => {
                 message: "Bank details added successfully"
             })
         }
-    } catch (error) {
-        if(err.response.data.error.code === 'BAD_REQUEST_ERROR') {
+    } catch (err) {
+        console.log(err);
+        if(err.response?.data?.error?.code === 'BAD_REQUEST_ERROR') {
             return res.status(400).json({
                 message: err.response.data.error.description,
                 data: err.response.data

@@ -55,7 +55,7 @@ const routes = [
     },
     {
         method: 'post',
-        path: '/accepttnc',
+        path: '/create/accept_tnc',
         controller: linkedAccountController.acceptTnc,
         options: {
             isOnlySuperAdminAccessAllowed: true
@@ -63,7 +63,7 @@ const routes = [
     },
     {
         method: 'post',
-        path: '/addBankAccount',
+        path: '/create/bank_details',
         controller: linkedAccountController.addBankDetails,
         options: {
             isOnlySuperAdminAccessAllowed: true
