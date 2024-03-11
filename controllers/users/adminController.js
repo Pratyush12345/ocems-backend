@@ -10,7 +10,7 @@ module.exports.signUp = async (req, res) => {
     const plantID = req.userData.plantID
     const superAdminId = req.userData.uid
     
-    const requiredFields = ["name", "email", "phoneNo", "postName", "plantID"]
+    const requiredFields = ["name", "email", "phoneNo", "postName"]
 
     // check if all the required fields are present by looping
     for(let i=0; i<requiredFields.length; i++){

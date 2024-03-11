@@ -220,8 +220,8 @@ module.exports.createPlant = async (req,res) => {
             plantName: plantName,
             state: state,
             telNo: telNo,
-            currentQuotationNumber: quotationNumber,
-            startQuotationNumber: quotationNumber,
+            currentQuotationNo: quotationNumber,
+            startQuotationNo: quotationNumber,
             razorpayAccountDetails: {
                 id: "",
                 status: "",
