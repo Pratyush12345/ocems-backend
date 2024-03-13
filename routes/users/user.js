@@ -12,6 +12,9 @@ const routes = [
         method: 'get',
         path: '/',
         controller: userContoller.getUsers,
+        options: { 
+            areAllPlantRolesAllowed: true
+        }
     },
     {
         method: 'get',

@@ -117,7 +117,13 @@ module.exports.updateUser = async (req,res) => {
             // check if the updatedData object contains any updateable fields and if they are valid strings and non empty
             for(let i=0; i<updateableFields.length; i++){
                 if(updatedData.hasOwnProperty(updateableFields[i])){
-                    if(typeof updatedData[updateableFields[i]] !== "string"){
+                    if(updateableFields[i] === 'departmentAccess'){
+                        if(!Array.isArray(updatedData[updateableFields[i]])){
+                            return res.status(400).json({
+                                message: `departmentAccess should be an array`
+                            })
+                        } 
+                    } else if(typeof updatedData[updateableFields[i]] !== "string"){
                         return res.status(400).json({
                             message: `${updateableFields[i]} should be a string`
                         })

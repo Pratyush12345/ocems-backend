@@ -90,6 +90,7 @@ module.exports.getBillApprovalRequests = async (req,res) => {
                 requestsArray.push({
                     id: bill.id,
                     industryid: industryid,
+                    dateAdded: data.dateAdded,
                     data: bill.data(),
                 })
             }
@@ -612,6 +613,10 @@ const convertTensAndBelow = (number) => {
     return tens[tenUnits] + (remainder ? " " + belowTwenty[remainder] : "");
 }
 
+function trimToTwoDecimalPlaces(num) {
+    return Math.floor(num * 100) / 100;
+}
+
 module.exports.downloadBill = async (req,res) => {
     const billid = req.query.billid
     const plantID = req.userData.plantID
@@ -678,7 +683,8 @@ module.exports.downloadBill = async (req,res) => {
             }
 
             const qty = good.qty
-            const price = masterCopyData.price*qty
+            const unitPrice = masterCopyData.price
+            const price = unitPrice*qty
             const cgstRate = masterCopyData.cgstRate
             const sgstRate = masterCopyData.sgstRate
             const cgstAmount = (price*cgstRate)/100
@@ -692,12 +698,13 @@ module.exports.downloadBill = async (req,res) => {
                 description: `${masterCopyData.description} (${good.starting}-${good.ending})`,
                 qty: qty,
                 unit: masterCopyData.unit,
-                price: price,
-                cgstRate: cgstRate + "%",
-                cgstAmount: cgstAmount,
-                sgstRate: sgstRate + "%",
-                sgstAmount: sgstAmount,
-                amount: amount
+                unitPrice: trimToTwoDecimalPlaces(unitPrice),
+                price: trimToTwoDecimalPlaces(price),
+                cgstRate: trimToTwoDecimalPlaces(cgstRate) + "%",
+                cgstAmount: trimToTwoDecimalPlaces(cgstAmount),
+                sgstRate: trimToTwoDecimalPlaces(sgstRate) + "%",
+                sgstAmount: trimToTwoDecimalPlaces(sgstAmount),
+                amount: trimToTwoDecimalPlaces(amount)
             })
         }
         let billDate = new Date(billData.dateCreated)
