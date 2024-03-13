@@ -1,7 +1,10 @@
+const { K } = require('handlebars')
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 const IndustryRequest = firestore.collection('industriesRequest')
 const Email = require('../../mail/mailController')
+const Excel = require('exceljs')
+const fs = require('fs')
 
 const mailChecker = async (email) => {
     try {
@@ -271,13 +274,15 @@ module.exports.approveRequest = async (req,res) => {
             })
         }
 
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryuid).get()
+
         // create new industry firebase account
         const date = new Date()
-        const password = `${industryuid}_${date.toISOString().replace(/\s+/g, '')}`
+        const newPassword = `${industry.data().companyName}_${Math.floor(Math.random() * 900) + 100}_${date.getMilliseconds()}`
 
         const newIndustryAccount = await firebase.auth().createUser({
             email: industryRequest.get('email'),
-            password: password,
+            password: newPassword,
             emailVerified: false,
             disabled: false
         })
@@ -298,7 +303,7 @@ module.exports.approveRequest = async (req,res) => {
         await firestore.collection('industriesRequest').doc(industryuid).delete()
 
         // send email with credentials
-        await Email.sendCredentialMail("Industry", newIndustryAccount.email, password)
+        await Email.sendCredentialMail("Industry", newIndustryAccount.email, newPassword)
 
         return res.status(200).json({
             message: "Industry approved and credential mail sent"
@@ -360,71 +365,204 @@ module.exports.rejectRequest = async (req,res) => {
 
 }
 
-/**
- * No approval or rejection required
- * For bulk upload:
- *      ~ Get all industries data in form of an array
- *      ~ Error checking
- *      ~ Set custom claims
- *      ~ Set password for industry's firebase account
- *      ~ Add to plant's industries collection with approved to true
- *      ~ Send email with credentials
- */
+const header = {
+    companyName: "compulsory",
+    address: "compulsory",
+    email: "compulsory",
+    phoneNo: "compulsory",
+    pincode: "optional",
+    IC_chamber_install: "optional",
+    cetp_stp_etp_type: "optional",
+    consentValidity: "optional",
+    domesticEffluent: "optional",
+    h_n_type: "optional",
+    phase: "optional",
+    pno: "optional",
+    totalEffluentTradeAndUtility: "optional",
+    unitId: "optional",
+    remark: "optional"
+}
+
 module.exports.bulkUpload = async (req,res) => {
-    const industries = req.body.industries
+    const industries = req.file
     const plantID = req.userData.plantID
 
     try {
-        let counter=0
-
-        for (let i = 0; i < industries.length; i++) {
-            const industryElement = industries[i];
-
-            // Valid mail check ->
-            const checkMail = await mailChecker(industryElement.email)
-            if(checkMail){
-                continue
-            }
-
-            counter++
-            // create firebase account of industry
-            const industryAuth = await firebase.auth().createUser({
-                email: industryElement.email,
-                emailVerified: false,
-                password: "industry",
-                disabled: false,
+        if(!industries){
+            return res.status(400).json({
+                message: "Please upload a file"
             })
-            
-            // set password- setting this after because can't access uid before initialized
-            const date = new Date()
-            const password = `${industryAuth.uid}_${date.toISOString().replace(/\s+/g, '')}`
-
-            await firebase.auth().updateUser(industryAuth.uid, {
-                password: password
-            })
-
-            // set custom claim for plant id on industry
-            await firebase.auth().setCustomUserClaims(industryAuth.uid, {
-                plantID: plantID
-            })
-
-            // add creation date to industry json object 
-            industryElement["dateAdded"]=industryAuth.metadata.creationTime
-            
-            // approve the industry
-            industryElement["approved"]=true
-
-            // add industry to plant's industry collection
-            await firestore.collection(`plants/${plantID}/industryUsers`).add(industryElement)
-
-            // send email of credentials
-            await Email.sendCredentialMail("Industry", industryAuth.email, password)
         }
 
-        return res.status(200).json({
-            message: `Added ${counter} industries and sent ${counter} credential email(s)`
-        })
+        // check if the extension of the file is .csv or not
+        if(industries.originalname.split('.')[industries.originalname.split('.').length-1] !== 'csv'){
+            return res.status(400).json({
+                message: "Only .csv files are allowed"
+            })
+        }
+
+        const workbook = new Excel.Workbook()
+        await workbook.csv.readFile(industries.path);
+        fs.unlink(industries.path, () => {})
+
+        const worksheet = workbook.getWorksheet(1);
+
+        let headerError = false;
+        let headerErrorObject = {};
+        const headerKeys = Object.keys(header); // Get the keys from the header object
+
+        const firstRowValues = worksheet.getRow(1).values.slice(1); // Adjust for Excel's indexing
+
+        if (headerKeys.length !== firstRowValues.length) {
+            headerError = true;
+            headerErrorObject = {
+                message: 'Header length mismatch',
+                expectedHeaders: headerKeys,
+                obtainedHeaders: firstRowValues
+            };
+        } else {
+            for (let i = 0; i < headerKeys.length; i++) {
+                if (headerKeys[i] !== firstRowValues[i]) { 
+                    headerError = true;
+                    headerErrorObject = {
+                        message: 'Incorrect header value',
+                        headerObtained: firstRowValues[i],
+                        headerRequired: headerKeys[i]
+                    };
+                    break; 
+                }
+            }
+        }
+
+        if(headerError){
+            return res.status(400).json(headerErrorObject)
+        }
+
+        const errorRows = []
+        const readyRows = []
+        const mails = new Set()
+        const promises = [];
+
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header row
+
+            promises.push(new Promise(async (resolve, reject) => {
+                const rowData = row.values.slice(1); // Adjust to correct Excel's leading undefined element
+                let rowObject = {};
+                let errors = [];
+
+                // Process each key asynchronously
+                await Promise.all(Object.keys(header).map(async (key, index) => {
+                    // Use header names as keys, and assign values or null string if missing
+                    rowObject[key] = rowData[index] ? rowData[index] : "";
+
+                    if (index < 4 && (rowData[index] === undefined || rowData[index] === "")) {
+                        // Check for errors in the first 4 columns
+                        errors.push(`Missing required ${key} field`);
+                    } else if (key === 'email') {
+                        // check if email is valid by regex
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(rowObject.email)) {
+                            errors.push('Invalid email');
+                        }
+
+                        const checkMail = await mailChecker(rowObject.email)
+                        if (checkMail) {
+                            errors.push("Email already exists, try with a different email");
+                        } else if (mails.has(rowObject.email)) {
+                            errors.push('Some other industry already has this email in the uploaded file');
+                        } else {
+                            mails.add(rowObject.email)
+                        }
+                    } else if (key === 'IC_chamber_install') {
+                        rowObject[key] = rowObject[key].toLowerCase();
+                        if (rowObject[key] !== 'true' && rowObject[key] !== 'false' && rowObject[key].length !== 0) {
+                            errors.push('IC_chamber_install can only be true or false');
+                        }
+                    } else if (key === "cetp_stp_etp_type") {
+                        rowObject[key] = rowObject[key].toLowerCase();
+                        
+                        if(rowObject[key].length > 15){
+                            errors.push('cetp_stp_etp_type can only be of length 15');
+                        }
+                    } else if (key === "h_n_type") {
+                        rowObject[key] = rowObject[key].toLowerCase();
+
+                        if (rowObject[key] !== 'h' && rowObject[key] !== 'n' && rowObject[key].length !== 0) {
+                            errors.push('h_n_type can only be h or n');
+                        }
+                    } else if (key === "phoneNo") {
+                        if (String(rowObject[key]).length !== 10) {
+                            errors.push('Phone number should be of length 10');
+                        }
+                    }
+                }));
+
+                if (errors.length > 0) {
+                    rowObject["errors"] = errors;
+                    errorRows.push(rowObject);
+                } else {
+                    readyRows.push(rowObject);
+                }
+
+                // Resolve the promise once the row processing is complete
+                resolve();
+            }));
+        });
+
+        // Wait for all promises to resolve
+        await Promise.all(promises);
+        
+        if(errorRows.length>0){
+            return res.status(400).json({
+                message: 'Please check the error in rows and correct them.',
+                readyRows: readyRows,
+                errorRows: errorRows
+            })
+        } else {
+            for (let i = 0; i < readyRows.length; i++) {
+                const industryElement = readyRows[i];
+                
+                // create firebase account of industry
+                const date = new Date()
+                const newPassword = `${industryElement.companyName.replace(/\s+/g, '').toLowerCase().substring(0,3)}_${Math.floor(Math.random() * 900) + 100}_${date.getMilliseconds()}`
+                const industryAuth = await firebase.auth().createUser({
+                    email: industryElement.email,
+                    emailVerified: false,
+                    password: newPassword,
+                    disabled: false,
+                })
+ 
+                // modifications for the industry object
+                industryElement["apiID"]=null
+                industryElement["isActive"]=1
+                industryElement["fcm_token"]=""
+                industryElement["approved"]=true
+                industryElement["plantID"]=plantID
+                industryElement["dateAdded"]=industryAuth.metadata.creationTime
+                industryElement["IC_chamber_install"]=industryElement.IC_chamber_install === 'true' ? true : false
+                
+                // add industry to plant's industry collection
+                const industry = await firestore.collection(`plants/${plantID}/industryUsers`).add(industryElement)
+                
+                // set custom claim for plant id on industry
+                await firebase.auth().setCustomUserClaims(industryAuth.uid, {
+                    plantID: plantID,
+                    role: "industry",
+                    industryid: industry.id
+                })
+
+                // send email of credentials
+                await Email.sendCredentialMail("Industry", industryAuth.email, newPassword)
+            }
+            
+            return res.status(200).json({
+                message: 'Industries added successfully'
+            })
+        }
+
     } catch (error) {
+        fs.unlink(industries.path, () => {})
         console.log(error);
         return res.status(500).json({
             error: error

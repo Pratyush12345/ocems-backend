@@ -60,6 +60,11 @@
                 line-height: 1;
             }
 
+            .goods-table .theadingElement:nth-child(2),
+            .goods-table .tdataElement:nth-child(2) {
+                width: 25%; /* Adjust the width as needed */
+            }
+
             .theadingElement {
                 border-right: 1px solid black;
                 padding: 15px 1.5px;
@@ -182,17 +187,15 @@
                             class="head-row"
                             style="border-bottom: 1px solid black"
                         >
-                            <th class="theadingElement">S. No.</th>
-                            <th class="theadingElement">Description of Goods</th>
+                            <th class="theadingElement">S.No.</th>
+                            <th class="theadingElement">Description</th>
                             <th class="theadingElement">HSN/SAC</th>
-                            <th class="theadingElement">Quantity</th>
+                            <th class="theadingElement">Qty</th>
                             <th class="theadingElement">Unit</th>
-                            <th class="theadingElement">Unit Price</th>
+                            <th class="theadingElement">Rate</th>
                             <th class="theadingElement">Price</th>
-                            <th class="theadingElement">CGST Rate</th>
-                            <th class="theadingElement">CGST Amount</th>
-                            <th class="theadingElement">SGST Rate</th>
-                            <th class="theadingElement">SGST Amount</th>
+                            <th class="theadingElement">CGST</th>
+                            <th class="theadingElement">SGST</th>
                             <th class="">Amount</th>
                         </tr>
                     </thead>
@@ -206,10 +209,8 @@
                                 <td class="tdataElement">{{good.unit}}</td>
                                 <td class="tdataElement">₹{{good.unitPrice}}</td>
                                 <td class="tdataElement">₹{{good.price}}</td>
-                                <td class="tdataElement">{{good.cgstRate}}</td>
-                                <td class="tdataElement">₹{{good.cgstAmount}}</td>
-                                <td class="tdataElement">{{good.sgstRate}}</td>
-                                <td class="tdataElement">₹{{good.sgstAmount}}</td>
+                                <td class="tdataElement">₹{{good.cgstAmount}} ({{good.cgstRate}})</td>
+                                <td class="tdataElement">₹{{good.sgstAmount}} ({{good.sgstRate}})</td>
                                 <td class="">₹{{good.amount}}</td>
                             </tr>
                         {{/each}}

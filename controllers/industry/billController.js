@@ -90,6 +90,7 @@ module.exports.getBillApprovalRequests = async (req,res) => {
                 requestsArray.push({
                     id: bill.id,
                     industryid: industryid,
+                    dateAdded: data.dateAdded,
                     data: bill.data(),
                 })
             }

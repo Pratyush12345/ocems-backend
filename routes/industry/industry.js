@@ -3,9 +3,22 @@ const router = express.Router()
 const industryController = require('../../controllers/industry/industryController')
 const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
-    read: ['Industry-Read', 'Industry-Write'],
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
     write: ['Industry-Write']
 }
+const multer = require('multer')
+
+const bulkUploadSheet = multer({
+    storage: multer.diskStorage({
+        destination: (req,file,cb) => {
+            console.log('processing');
+            return cb(null, 'uploads/industry/')
+        },
+        filename: (req,file,cb) => {
+            return cb(null, `${Date.now()}-${file.originalname}`)
+        }
+    })
+}).single("industries_file")
 
 router.use('/bill', require('./bill'))
 router.use('/notice', require('./notice'))
@@ -44,6 +57,7 @@ const routes = [
         method: 'post',
         path: '/bulkadd',
         controller: industryController.bulkUpload,
+        middleware: [bulkUploadSheet]
     },
     {
         method: 'delete',
