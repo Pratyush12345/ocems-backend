@@ -3,7 +3,7 @@ const router = express.Router()
 const industryController = require('../../controllers/industry/industryController')
 const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
-    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read', 'Bill-Write'],
     write: ['Industry-Write']
 }
 const multer = require('multer')

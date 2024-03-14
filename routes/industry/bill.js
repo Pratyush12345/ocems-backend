@@ -4,7 +4,7 @@ const billController = require('../../controllers/industry/billController')
 const multer = require('multer')
 const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
-    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read', 'Bill-Write'],
     write: ['Bill-Write']
 }
 

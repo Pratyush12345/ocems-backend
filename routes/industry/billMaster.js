@@ -3,7 +3,7 @@ const router = express.Router()
 const billMasterController = require('../../controllers/industry/billMasterController')
 const defineRoutes = require('../../utils/routeFactory')
 const departmentAccess = {
-    read: ['Industry-Read', 'Industry-Write', 'Bill-Read'],
+    read: ['Industry-Read', 'Industry-Write', 'Bill-Read', 'Bill-Write'],
     write: ['Bill-Write']
 }
 
