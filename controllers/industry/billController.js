@@ -577,40 +577,38 @@ hbs.registerHelper('dateFormat', (value, format) => {
     return moment(value).format(format)
 })
 
-const numberToWordsIndian = (number) => {
-    if (number === 0) return "Zero";
-
-    let words = "";
-
-    const crore = Math.floor(number / 10000000);
-    number -= crore * 10000000;
-    const lakh = Math.floor(number / 100000);
-    number -= lakh * 100000;
-    const thousand = Math.floor(number / 1000);
-    number -= thousand * 1000;
-    const hundred = Math.floor(number / 100);
-    number -= hundred * 100;
-
-    if (crore > 0) words += `${convertTensAndBelow(crore)} Crore `;
-    if (lakh > 0) words += `${convertTensAndBelow(lakh)} Lakh `;
-    if (thousand > 0) words += `${convertTensAndBelow(thousand)} Thousand `;
-    if (hundred > 0) words += `${convertTensAndBelow(hundred)} Hundred `;
-
-    if (number > 0) words += convertTensAndBelow(number);
-
-    return words.trim();
-}
-
-const convertTensAndBelow = (number) => {
-    const belowTwenty = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
-        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
-    if (number < 20) return belowTwenty[number];
-    const tenUnits = Math.floor(number / 10);
-    const remainder = number % 10;
-
-    return tens[tenUnits] + (remainder ? " " + belowTwenty[remainder] : "");
+const numberToWordsIndian = (num) => {
+    if (num === 0) return 'Zero Rupees';
+    let words = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+    let tens = ['', '', 'Twenty ', 'Thirty ', 'Forty ', 'Fifty ', 'Sixty ', 'Seventy ', 'Eighty ', 'Ninety '];
+    
+    function numToWords(n, suffix) {
+        if (n === 0) return '';
+        if (n > 19) return tens[Math.floor(n / 10)] + words[n % 10] + suffix;
+        else return words[n] + suffix;
+    }
+    
+    function convertCrores(n) {
+        return n >= 10 ? numToWords(Math.floor(n / 10000000), "Crore ") + convertLakhs(n % 10000000) : convertLakhs(n);
+    }
+    
+    function convertLakhs(n) {
+        return n >= 10 ? numToWords(Math.floor(n / 100000), "Lakh ") + convertThousands(n % 100000) : convertThousands(n);
+    }
+    
+    function convertThousands(n) {
+        return n >= 10 ? numToWords(Math.floor(n / 1000), "Thousand ") + convertHundreds(n % 1000) : convertHundreds(n);
+    }
+    
+    function convertHundreds(n) {
+        return n > 100 ? numToWords(Math.floor(n / 100), "Hundred ") + numToWords(n % 100, "") : numToWords(n, "");
+    }
+    
+    let atPaise = num.toString().split(".");
+    let rupees = convertCrores(Math.floor(atPaise[0]));
+    let paise = atPaise.length > 1 ? convertHundreds(Math.floor(atPaise[1])) : '';
+    paise = paise ? `and ${paise}Paise` : '';
+    return `${rupees}Rupees ${paise}`.trim();
 }
 
 function trimToTwoDecimalPlaces(num) {
@@ -712,6 +710,7 @@ module.exports.downloadBill = async (req,res) => {
         billDate = `${billDate.getDate()}/${billDate.getMonth()+1}/${billDate.getFullYear()}`
         lastDate = `${lastDate.getDate()}/${lastDate.getMonth()+1}/${lastDate.getFullYear()}`
 
+        totalAmount = trimToTwoDecimalPlaces(totalAmount)
         const data = {
             plant: {
                 gst: plantData.gstin,
@@ -740,7 +739,7 @@ module.exports.downloadBill = async (req,res) => {
                 declaration: declaration,
                 goods: goodsWithCharges,
                 totalAmount: totalAmount,
-                totalAmountInWords: numberToWordsIndian(totalAmount) + " Rupees Only",
+                totalAmountInWords: numberToWordsIndian(totalAmount) + " Only",
                 interestRate: billData.requiredFields.interestRate,
                 lastDate: lastDate
             }
