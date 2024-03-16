@@ -102,13 +102,55 @@ module.exports.getNotices = async (req,res) => {
 
 }
 
+const sendNoticeNotification = async (fcm_token) => {
+    if(!fcm_token) return
+    
+    try {
+        const message = {
+            notification: {
+                title: "New Notice",
+                body: `A new notice has been issued by the plant.`
+            },
+            token: fcm_token
+        }
+
+        await getMessaging().send(message)
+    } catch (error) {
+        console.log("Notification not sent");
+    }
+}
+
 module.exports.createNotice = async (req,res) => {
-    const industries = JSON.parse(req.body.industries)
+    const sendToAll = req.query.sendtoall
     const description = req.body.description
     const title = req.body.title
     const plantID = req.userData.plantID
     const files = req.files
     const notices = []
+    let industries
+
+    if(!sendToAll){
+        industries = JSON.parse(req.body.industries)
+
+        if(industries.length === 0){
+            return res.status(400).json({
+                message: "industries cannot be empty"
+            })
+        }
+        
+    } else {
+        if(req.body.industries){
+            return res.status(400).json({
+                message: 'sendToAll and industries cannot be used together'
+            })
+        }
+
+        if(sendToAll !== 'true'){
+            return res.status(400).json({
+                message: 'sendToAll can only be true'
+            })
+        }
+    }
 
     for (let i = 0; i < files.length; i++) {
         const element = files[i];
@@ -119,23 +161,25 @@ module.exports.createNotice = async (req,res) => {
     }
 
     try {
-        // check if all industries exist
-        for (let i = 0; i < industries.length; i++) {
-            const industryid = industries[i];
-
-            const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-            if(!industry.exists){
-                for (let i = 0; i < notices.length; i++) {
-                    const notice = notices[i];
-                    
-                    fs.unlink(notice.path, (err) => {
-                        console.log("Error deleting files");
+        if(!sendToAll){
+            // check if all industries exist
+            for (let i = 0; i < industries.length; i++) {
+                const industryid = industries[i];
+    
+                const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+                if(!industry.exists){
+                    for (let i = 0; i < notices.length; i++) {
+                        const notice = notices[i];
+                        
+                        fs.unlink(notice.path, (err) => {
+                            console.log("Error deleting files");
+                        })
+                    }
+        
+                    return res.status(404).json({
+                        message: "One of the Industries not found"
                     })
                 }
-    
-                return res.status(404).json({
-                    message: "One of the Industries not found"
-                })
             }
         }
         
@@ -166,7 +210,7 @@ module.exports.createNotice = async (req,res) => {
         const date = new Date().toUTCString()
         await firestore.collection(`plants/${plantID}/notices`).add({
             attachments: attachments,
-            industries: industries,
+            industries: sendToAll ? ["All"] : industries,
             creationDate: date,
             updationDate: date,
             description: description,
@@ -174,28 +218,22 @@ module.exports.createNotice = async (req,res) => {
             title: title
         })
 
-        // send notification to all industries
-        for (let i = 0; i < industries.length; i++) {
-            const industryid = industries[i];
-            
-            const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-            const fcm_token = industry.get('fcm_token')
-            
-            if(fcm_token){
-                try {
-                    const message = {
-                        notification: {
-                            title: "New Notice",
-                            body: `A new notice has been issued by the plant.`
-                        },
-                        token: fcm_token
-                    }
-        
-                    await getMessaging().send(message)
-                } catch (error) {
-                    console.log("Notification not sent");
-                }
+        if(!sendToAll){
+            // send notification to all industries
+            for (let i = 0; i < industries.length; i++) {
+                const industryid = industries[i];
+                
+                const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+                const fcm_token = industry.get('fcm_token')
+                
+                await sendNoticeNotification(fcm_token)
             }
+        } else {
+            const industries = await firestore.collection(`plants/${plantID}/industryUsers`).get()
+            industries.forEach(async industry => {
+                const fcm_token = industry.get('fcm_token')     
+                await sendNoticeNotification(fcm_token)
+            })
         }
 
         // delete the files from the uploads folder
