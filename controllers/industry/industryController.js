@@ -413,6 +413,14 @@ module.exports.bulkUpload = async (req,res) => {
 
         const firstRowValues = worksheet.getRow(1).values.slice(1); // Adjust for Excel's indexing
 
+        const rowCount = worksheet.actualRowCount
+
+        if(rowCount <= 1) {
+            return res.status(400).json({
+                message: 'No data found in the file'
+            })
+        }
+
         if (headerKeys.length !== firstRowValues.length) {
             headerError = true;
             headerErrorObject = {
@@ -464,20 +472,21 @@ module.exports.bulkUpload = async (req,res) => {
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (!emailRegex.test(rowObject.email)) {
                             errors.push('Invalid email');
+                        } else {
+                            const checkMail = await mailChecker(rowObject.email)
+                            if (checkMail) {
+                                errors.push("Email already exists, try with a different email");
+                            } else if (mails.has(rowObject.email)) {
+                                errors.push('Some other industry already has this email in the uploaded file');
+                            } else {
+                                mails.add(rowObject.email)
+                            }
                         }
 
-                        const checkMail = await mailChecker(rowObject.email)
-                        if (checkMail) {
-                            errors.push("Email already exists, try with a different email");
-                        } else if (mails.has(rowObject.email)) {
-                            errors.push('Some other industry already has this email in the uploaded file');
-                        } else {
-                            mails.add(rowObject.email)
-                        }
                     } else if (key === 'IC_chamber_install') {
                         rowObject[key] = rowObject[key].toLowerCase();
-                        if (rowObject[key] !== 'true' && rowObject[key] !== 'false' && rowObject[key].length !== 0) {
-                            errors.push('IC_chamber_install can only be true or false');
+                        if (rowObject[key] !== 'yes' && rowObject[key] !== 'no' && rowObject[key].length !== 0) {
+                            errors.push('IC_chamber_install can only be yes or no');
                         }
                     } else if (key === "cetp_stp_etp_type") {
                         rowObject[key] = rowObject[key].toLowerCase();
@@ -499,6 +508,7 @@ module.exports.bulkUpload = async (req,res) => {
                 }));
 
                 if (errors.length > 0) {
+                    rowObject["rowNumber"] = rowNumber;
                     rowObject["errors"] = errors;
                     errorRows.push(rowObject);
                 } else {
