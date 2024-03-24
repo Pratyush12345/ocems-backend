@@ -55,7 +55,7 @@ const mailChecker = async (email) => {
 module.exports.signUp = async (req,res) => {
     const email = req.body.email
     const plantID = req.body.plantID
-    
+
     // Valid mail check ->
     const checkMail = await mailChecker(email)
     if(checkMail){
@@ -166,7 +166,118 @@ module.exports.getIndustryName = async (req,res) => {
         })
     }
 }
- 
+
+const requiredFields = [
+    "IC_chamber_install",
+    "address",
+    "cetp_stp_etp_type",
+    "companyName",
+    "consentValidity",
+    "domesticEffluent",
+    "h_n_type",
+    "phase",
+    "email",
+    "phoneNo",
+    "pno",
+    "pincode",
+    "plantID",
+    "remark",
+    "totalEffluentTradeAndUtility",
+    "unitId"
+]
+
+module.exports.addIndustry = async (req,res) => {
+    const plantID = req.userData.plantID
+
+    // Valid mail check ->
+    const checkMail = await mailChecker(req.body.email)
+    if(checkMail){
+        return res.status(checkMail.code).json({
+            message: checkMail.message
+        })
+    }
+
+    // Required fields check
+    for (let i = 0; i < requiredFields.length; i++) {
+        if (!req.body[requiredFields[i]]) {
+            return res.status(400).json({
+                message: `${requiredFields[i]} is required`
+            })
+        }
+
+        if (requiredFields[i] === 'phoneNo' && String(req.body.phoneNo).length !== 10) {
+            return res.status(400).json({
+                message: 'Phone number should be of length 10'
+            })
+        }
+
+        if (requiredFields[i] === 'email') {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(req.body.email)) {
+                return res.status(400).json({
+                    message: 'Invalid email'
+                })
+            }
+        }
+    }
+
+    try {
+        const newIndustry = await firestore.collection(`plants/${plantID}/industryUsers`).add({
+            IC_chamber_install: req.body.IC_chamber_install,
+            address: req.body.address,
+            approved: true,
+            cetp_stp_etp_type: req.body.cetp_stp_etp_type,
+            companyName: req.body.companyName,
+            consentValidity: req.body.consentValidity,
+            dateAdded: new Date().toUTCString(),
+            domesticEffluent: req.body.domesticEffluent,
+            email: req.body.email,
+            h_n_type: req.body.h_n_type,
+            phase: req.body.phase,
+            phoneNo: req.body.phoneNo,
+            pincode: req.body.pincode,
+            plantID: req.body.plantID,
+            pno: req.body.pno,
+            remark: req.body.remark,
+            totalEffluentTradeAndUtility: req.body.totalEffluentTradeAndUtility,
+            unitId: req.body.unitId,
+            fcm_token: "",
+            isActive: 1,
+            apiID: req.body.apiID ? req.body.apiID : null
+        })
+
+        const date = new Date()
+        const newPassword = `${req.body.companyName}_${Math.floor(Math.random() * 900) + 100}_${date.getMilliseconds()}`
+
+        const newIndustryAccount = await firebase.auth().createUser({
+            email: req.body.email,
+            password: newPassword,
+            emailVerified: false,
+            disabled: false
+        })
+
+        // set custom claim for plant id on industry
+        await firebase.auth().setCustomUserClaims(newIndustryAccount.uid, {
+            plantID: plantID,
+            role: "industry",
+            industryid: newIndustry.id
+        })
+
+        // send email with credentials
+        await Email.sendCredentialMail("Industry", newIndustryAccount.email, newPassword)
+
+        return res.status(200).json({
+            message: "Industry added successfully"
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+}
+
 // returns all industries of a plant using admin's id
 module.exports.getRequests = async (req,res) => {
     const plantID = req.userData.plantID
