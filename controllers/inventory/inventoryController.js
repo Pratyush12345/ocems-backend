@@ -1,7 +1,76 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
-const IndustryRequest = firestore.collection('industriesRequest')
-const Email = require('../../mail/mailController')
+
+module.exports.report = async (req,res) => {
+    const plantID = req.userData.plantID;
+    const itemType = parseInt(req.query.type);
+
+    if(itemType !== 0 && itemType !== 1){
+        return res.status(400).json({
+            message: "Invalid itemType query parameter. Must be 0 or 1."
+        });
+    }
+
+    try {
+        const inventory = await firestore.collection(`plants/${plantID}/inventory`).get();
+
+        const usagePromises = [];
+        const entriesPromises = [];
+
+        inventory.docs.forEach((doc) => {
+            const item = doc.data();
+
+            if((itemType === 1 && item.itemType === "Consumable") || 
+               (itemType === 0 && item.itemType === "Non Consumable")){
+                return;
+            } 
+
+            const usageDocsPromise = doc.ref.collection('usage').get().then(usageDocs => {
+                return usageDocs.docs.map(usageDoc => ({
+                    itemCode: item.itemCode,
+                    itemName: item.itemName,
+                    action: "Removed",
+                    date: usageDoc.data().dateUsed,
+                    unit: usageDoc.data().usageUnit,
+                    qty: usageDoc.data().usageQty
+                }));
+            });
+
+            const entriesDocsPromise = doc.ref.collection('entries').get().then(entriesDocs => {
+                return entriesDocs.docs.map(entryDoc => ({
+                    itemCode: item.itemCode,
+                    itemName: item.itemName,
+                    action: "Added",
+                    date: entryDoc.data().dateEntered,
+                    unit: entryDoc.data().enteredUnit,
+                    qty: entryDoc.data().enteredQty
+                }));
+            });
+
+            usagePromises.push(usageDocsPromise);
+            entriesPromises.push(entriesDocsPromise);
+        });
+
+        const usage = await Promise.all(usagePromises).then(results => results.flat());
+        const entries = await Promise.all(entriesPromises).then(results => results.flat());
+        
+        // combine usage and entries array into one
+        const combined = usage.concat(entries);
+
+        // sort the combined array by date
+        combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        return res.status(200).json({
+            data: combined
+        });
+        
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        });
+    }
+}
 
 module.exports.getItems = async (req,res) => {
     const plantID = req.userData.plantID

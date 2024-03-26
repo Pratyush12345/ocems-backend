@@ -14,6 +14,11 @@ const routes = [
         controller: inventoryController.getItems
     },
     {
+        method: 'get',
+        path: '/report',
+        controller: inventoryController.report
+    },
+    {
         method: 'post',
         path: '/add',
         controller: inventoryController.addItem,

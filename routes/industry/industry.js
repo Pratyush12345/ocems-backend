@@ -45,6 +45,11 @@ const routes = [
     },
     {
         method: 'post',
+        path: '/add',
+        controller: industryController.addIndustry,
+    },
+    {
+        method: 'post',
         path: '/approve/:uid',
         controller: industryController.approveRequest,
     },
