@@ -34,6 +34,11 @@ const routes = [
         controller: instrumentController.getFilters
     },
     {
+        method: 'get',
+        path: '/tagnos',
+        controller: instrumentController.getAllTagNos
+    },
+    {
         method: 'post',
         path: '/add/filters',
         controller: instrumentController.addFilters

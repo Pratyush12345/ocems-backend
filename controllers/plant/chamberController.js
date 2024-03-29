@@ -122,22 +122,12 @@ const ioValidator = (io) => {
     for (let i = 0; i < io.length; i++) {
         const element = io[i];
 
-        if (!element.TagNo) {
-            return `${i} TagNo is required`
+        if (!element.name) {
+            return `${i} name is required`
         }
 
-        if (typeof element.TagNo !== 'string') {
-            return `${i} TagNo must be a string`
-        }
-
-        if (tagSet.has(element.TagNo)) {
-            return `${i} TagNo must be unique`
-        } else {
-            tagSet.add(element.TagNo)
-        }
-
-        if (!allTagNos.has(element.TagNo)) {
-            allTagNos.add(element.TagNo)
+        if (typeof element.name !== 'string') {
+            return `${i} name must be a string`
         }
 
         const parameterError = parametersValidator(element['params'])
@@ -156,19 +146,7 @@ const parametersValidator = (parameterObtained) => {
         return "params must be an object"
     }
 
-    for (let i = 0; i < parameters.length; i++) {
-        const element = parameters[i];
-        if (!parameterObtained[element]) {
-            return `params ${element} is required`
-        }
-    }
-
     Object.keys(parameterObtained).forEach((key) => {
-        if (!parameters.includes(key)) {
-            validationError = `Invalid Parameter ${key}`
-            return
-        }
-
         if (typeof parameterObtained[key] !== 'string') {
             validationError = `${key} must be a string`
             return
@@ -329,7 +307,6 @@ module.exports.getChamber = async (req, res) => {
         
                     if (subchamber.sludge) {
                         const sludgeValue = await sludgeCaclulator(plantID, subchamber.sludge);
-                        console.log(data[i].data.subchamber[j].sludge);
                         data[i].data.subchamber[j].sludge.value = sludgeValue;
                     }
                 }
@@ -337,6 +314,9 @@ module.exports.getChamber = async (req, res) => {
 
         }
 
+        // sort the chambers based on the position
+        data.sort((a, b) => a.data.position - b.data.position)
+        
         return res.status(200).json({
             chamber: data
         })
@@ -360,7 +340,6 @@ module.exports.createChamber = async (req, res) => {
             message: chamberError + " in chamber"
         })
     }
-
     if (subchambers) {
         const subchamberError = subchamberValidator(subchambers)
         if (subchamberError) {
@@ -424,6 +403,85 @@ module.exports.createChamber = async (req, res) => {
         })
     }
 
+}
+
+module.exports.addIO = async (req,res) => {
+    const plantID = req.userData.plantID
+    const chamberID = req.query.chamberid
+    let type = req.query.type
+    let name = req.body.name
+    let params = req.body.params
+
+    if(!chamberID){
+        return res.status(400).json({
+            message: 'ChamberID is required'
+        })
+    }
+
+    if(!type){
+        return res.status(400).json({
+            message: "type is required"
+        })
+    }
+
+    if(!name){
+        return res.status(400).json({
+            message: "name is required"
+        })
+    }
+
+    if(params){
+        if(typeof params !== 'object'){
+            return res.status(400).json({
+                message: 'params should be an object'
+            })
+        }
+    }
+
+    type = parseInt(type)
+
+    try {
+        const chamber = await firestore.collection('plants').doc(plantID).collection('Chamber').doc(chamberID).get()
+
+        if(!chamber.exists){
+            return res.status(404).json({
+                message: "Chamber Not Found"
+            })
+        }
+
+        const chamberData = chamber.data()
+
+        if(type === 1){
+            const inlet = chamberData.inlet
+            inlet.push({
+                name: name,
+                params: params
+            })
+
+            await chamber.ref.update({
+                inlet: inlet
+            })
+        } else if (type === 2){
+            const outlet = chamberData.outlet
+            outlet.push({
+                name: name,
+                params: params
+            })
+
+            await chamber.ref.update({
+                outlet: outlet
+            })
+        }
+
+        return res.status(200).json({
+            message: `${type === 1 ? "Inlet" : "Outlet"} added successfully`
+        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
 }
 
 module.exports.updateChamber = async (req,res) => {
@@ -503,6 +561,213 @@ module.exports.updateChamber = async (req,res) => {
 
 }
 
+const updateParamsHelper = (oldObject, indexToUpdate, params, operation) => {
+    const newObject = {}
+    if(operation === 'add'){
+        oldObject[params.key] = params.value
+        return oldObject
+    }
+
+    Object.keys(oldObject).forEach((key, index) => {
+        if(index === indexToUpdate){
+            if(operation === 'update')
+                newObject[params.key] = params.value
+        } else {
+            newObject[key] = oldObject[key]
+        }
+    })
+    return newObject
+}
+
+module.exports.updateParams = async (req,res) => {
+    const plantID = req.userData.plantID
+    const chamberID = req.query.chamberid
+    let type = req.query.type
+    let indexToUpdate = req.query.index
+    const params = req.body.params
+    const operation = req.query.operation
+    const name = req.body.name
+
+    if(!chamberID){
+        return res.status(400).json({
+            message: "chamberID is required"
+        })
+    }
+
+    if(!type){
+        return res.status(400).json({
+            message: "type is required"
+        })
+    }
+
+    if(!operation){
+        return res.status(400).json({
+            message: "operation is required"
+        })
+    } else {
+        if(operation !== 'add' && operation !== 'update' && operation !== 'delete' && operation !== 'name'){
+            return res.status(400).json({
+                message: "Invalid operation provided"
+            })
+        }
+
+        if(operation !== 'add' && operation !== 'name'){
+            if(!indexToUpdate){
+                return res.status(400).json({
+                    message: "index is required"
+                })
+            }
+        }
+
+        if(operation !== 'name'){
+            if(params){
+                if(!params.key){
+                    return res.status(400).json({
+                        message: "params.key is required"
+                    })
+                }
+        
+                if(!params.value){
+                    return res.status(400).json({
+                        message: "params.value is required"
+                    })
+                }
+            } else {
+                return res.status(400).json({
+                    message: "params is required"
+                })
+            }
+        } else {
+            if(!name){
+                return res.status(400).json({
+                    message: "name is required"
+                })
+            }
+        }
+    }
+
+    type = parseInt(type)
+    indexToUpdate = parseInt(indexToUpdate)
+
+    try {
+        // get the chamber with the given chamberID
+        const chamberGet = await firestore.collection(`plants/${plantID}/Chamber`).doc(chamberID).get()
+
+        if(!chamberGet.exists){
+            return res.status(404).json({
+                message: "Chamber Not Found"
+            })
+        }
+
+        const chamber = chamberGet.data()
+
+        /*
+            Type => 
+                0: Chamber
+                1: Inlet
+                2: Outlet
+        */
+        if(type === 0){ 
+            if(operation === 'name'){
+                await chamberGet.ref.update({
+                    chamberName: name
+                })
+            } else {
+                await chamberGet.ref.update({
+                    chamberParams: updateParamsHelper(chamber.chamberParams, indexToUpdate, params, operation)
+                })
+            }
+
+        } else if (type === 1){
+            const inlet = chamber.inlet
+            let inletIndex = req.query.inletIndex
+
+            if(!inletIndex){
+                return res.status(400).json({
+                    message: "inletIndex is required"
+                })
+            }
+
+            inletIndex = parseInt(inletIndex)
+            const newInlet = []
+
+            for (let i = 0; i < inlet.length; i++) {
+                const element = inlet[i];
+                if(i === inletIndex){
+                    if(operation === 'name'){
+                        newInlet.push({
+                            name: name,
+                            params: element.params
+                        })
+                    } else {
+                        newInlet.push({
+                            name: element.name,
+                            params: updateParamsHelper(element.params, indexToUpdate, params, operation)
+                        })
+                    }
+
+                } else {
+                    newInlet.push(element)
+                }
+            }
+
+            await chamberGet.ref.update({
+                inlet: newInlet
+            })
+        } else if (type === 2){
+            const outlet = chamber.outlet
+            let outletIndex = req.query.outletIndex
+
+            if(!outletIndex){
+                return res.status(400).json({
+                    message: "outletIndex is required"
+                })
+            }
+
+            outletIndex = parseInt(outletIndex)
+            const newOutlet = []
+
+            for (let i = 0; i < outlet.length; i++) {
+                const element = outlet[i];
+                if(i === outletIndex){
+                    if(operation === 'name'){
+                        newOutlet.push({
+                            name: name,
+                            params: element.params
+                        })
+                    } else {
+                        newOutlet.push({
+                            name: element.name,
+                            params: updateParamsHelper(element.params, indexToUpdate, params, operation)
+                        })
+                    }
+
+                } else {
+                    newOutlet.push(element)
+                }
+            }
+
+            await chamberGet.ref.update({
+                outlet: newOutlet
+            })
+        } else {
+            return res.status(400).json({
+                message: "Invalid type provided"
+            })
+        }
+
+        return res.status(200).json({
+            message: `${type === 0 ? "Chamber" : type === 1 ? "Inlet" : "Outlet" } updated successfully`
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+}
+
 module.exports.swapChamberPosition = async (req,res) => {
     const plantID = req.userData.plantID
     const chamberID = req.body.chamberID
@@ -556,6 +821,46 @@ module.exports.swapChamberPosition = async (req,res) => {
 module.exports.deleteChamber = async (req, res) => {
     const plantID = req.userData.plantID
     const chamberID = req.params.chamberID
+    let type = req.query.type
+    let inletIndex = req.query.inletIndex
+    let outletIndex = req.query.outletIndex
+    console.log(req.query);
+
+    if(!type){
+        return res.status(400).json({
+            message: "type is required"
+        })
+    }
+
+    type = parseInt(type)
+    
+    if(type === 0){
+        if(inletIndex || outletIndex){
+            return res.status(400).json({
+                message: "inletIndex and outletIndex are not required"
+            })
+        }
+
+    } else if (type === 1){
+        if(!inletIndex){
+            return res.status(400).json({
+                message: "inletIndex is required"
+            })
+        }
+    } else if (type === 2){
+        if(!outletIndex){
+            return res.status(400).json({
+                message: "outletIndex is required"
+            })
+        }
+    } else {
+        return res.status(400).json({
+            message: "Invalid type provided"
+        })
+    }
+
+    inletIndex = parseInt(inletIndex)
+    outletIndex = parseInt(outletIndex)
 
     try {
         // check if the chamberID exists in the chamber collection
@@ -567,35 +872,54 @@ module.exports.deleteChamber = async (req, res) => {
             })
         }
 
-        await firestore.collection('plants').doc(plantID).collection('Chamber').doc(chamberID).delete()
+        if(type === 0){
+            await firestore.collection('plants').doc(plantID).collection('Chamber').doc(chamberID).delete()    
 
-        const allChambers = await firestore.collection('plants').doc(plantID).collection('Chamber').orderBy('position', 'asc').get()
+            const allChambers = await firestore.collection('plants').doc(plantID).collection('Chamber').orderBy('position', 'asc').get()
 
-        // go through all the chambers, and if the difference between consecutive chambers position is > 1, then from there onwards, decrease the position by 1 for all the chambers til the end
-        let prevPosition = 0
-        for (let i = 0; i < allChambers.docs.length; i++) {
-            const chamber = allChambers.docs[i];
-
-            const position = chamber.data().position
-
-            if (position - prevPosition > 1) {
-                // decrease the position by 1 for all the chambers til the end
-                for (let j = i; j < allChambers.docs.length; j++) {
-                    const chamber = allChambers.docs[j];
-
-                    await chamber.ref.update({
-                        position: chamber.data().position - 1
-                    })
+            // go through all the chambers, and if the difference between consecutive chambers position is > 1, then from there onwards, decrease the position by 1 for all the chambers til the end
+            let prevPosition = 0
+            for (let i = 0; i < allChambers.docs.length; i++) {
+                const chamber = allChambers.docs[i];
+    
+                const position = chamber.data().position
+    
+                if (position - prevPosition > 1) {
+                    // decrease the position by 1 for all the chambers til the end
+                    for (let j = i; j < allChambers.docs.length; j++) {
+                        const chamber = allChambers.docs[j];
+    
+                        await chamber.ref.update({
+                            position: chamber.data().position - 1
+                        })
+                    }
+                    break
                 }
-                break
+    
+                prevPosition = position
             }
 
-            prevPosition = position
+        } else if (type === 1){
+            const inlet = chamber.data().inlet
+            inlet.splice(inletIndex, 1)
+
+            await chamber.ref.update({
+                inlet: inlet
+            })
+
+        } else if (type === 2){
+            const outlet = chamber.data().outlet
+            outlet.splice(outletIndex, 1)
+
+            await chamber.ref.update({
+                outlet: outlet
+            })
         }
 
         return res.status(200).json({
-            message: "Chamber deleted successfully"
+            message: `${type === 0 ? "Chamber" : type === 1 ? "Inlet" : "Outlet" } deleted successfully`
         })
+
     } catch (error) {
         console.log(error);
         return res.status(500).json({

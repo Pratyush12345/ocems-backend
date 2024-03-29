@@ -8,8 +8,8 @@ module.exports = (req, res, next) => {
     // const industry = "OvHYUewf1gYgsVHjSJCAeEQDDX32"
     
     // req.userData = {}
-    // req.userData.uid = super_admin;
-    // // req.userData.uid = admin;
+    // // req.userData.uid = super_admin;
+    // req.userData.uid = admin;
     // // req.userData.uid = officer;
     // // req.userData.uid = operator;
     // // req.userData.uid = industry;
