@@ -19,9 +19,19 @@ const routes = [
         controller: chamberController.createChamber,
     },
     {
+        method: 'post',
+        path: '/add/io',
+        controller: chamberController.addIO,
+    },
+    {
         method: 'patch',
         path: '/update',
         controller: chamberController.updateChamber,
+    },
+    {
+        method: 'patch',
+        path: '/update/params',
+        controller: chamberController.updateParams,
     },
     {
         method: 'patch',

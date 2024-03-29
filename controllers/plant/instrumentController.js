@@ -1125,6 +1125,30 @@ const searchQueries = async (queryObject, plantID) => {
     return data
 }
 
+module.exports.getAllTagNos = async (req,res) => {
+    const plantID = req.userData.plantID
+
+    try {
+        const localInstruments = require(`../../data/instruments/${plantID}.json`).data
+
+        let data = []
+        for (let i = 0; i < localInstruments.length; i++) {
+            data.push(localInstruments[i]["TagNo"])
+        }
+
+        return res.status(200).json({
+            count: data.length,
+            data: data
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+}
+
 /**
     // DUMP- 1
     const collections = await firestore.collection(`plants`).doc(plantID).listCollections()
