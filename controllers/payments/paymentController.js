@@ -23,6 +23,29 @@ const razorpay = new Razorpay({
 module.exports.createOrder = async (req, res) => {
     const { amount, currency, receipt, notes } = req.body
 
+    try {
+        const payment = await razorpay.orders.create({
+            amount: amount,
+            currency: currency,
+            receipt: receipt,
+            notes: notes
+        })
+        console.log(payment);
+
+        return res.status(200).json(payment)
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
+}
+
+module.exports.createOrderWithTransfersAPI = async (req, res) => {
+    const { amount, currency, receipt, notes } = req.body
+
     const plantID = notes.plantId
 
     try {
@@ -83,6 +106,12 @@ module.exports.verifyPayment = async (req, res) => {
     const digest = generatedSignature.digest('hex');
 
     if (digest === razorpay_signature) {
+        const order = await razorpay.orders.fetch(razorpay_order_id)
+
+        const timestamp = new Date(order.created_at * 1000)
+
+        await capturedOrder(order.notes, timestamp, { orderid: order.id, paymentid: razorpay_payment_id })
+        
         return res.status(200).json({
             message: 'Payment Successful'
         })
