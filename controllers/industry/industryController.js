@@ -698,6 +698,7 @@ const updateableFields = [
     "consentValidity",
     "domesticEffluent",
     "h_n_type",
+    "address",
     "phase",
     "pno",
     "pincode",
