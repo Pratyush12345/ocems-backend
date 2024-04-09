@@ -65,6 +65,15 @@ const routes = [
         middleware: [bulkUploadSheet]
     },
     {
+        method: 'patch',
+        path: '/update/:industryid',
+        controller: industryController.updateIndustry,
+        options: {
+            isIndustryAccessAllowed: true,
+            isPlantAccessAllowed: false
+        }
+    },
+    {
         method: 'delete',
         path: '/delete/:uid',
         controller: industryController.deleteIndustry,

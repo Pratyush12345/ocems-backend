@@ -692,6 +692,78 @@ module.exports.bulkUpload = async (req,res) => {
 
 }
 
+const updateableFields = [
+    "IC_chamber_install",
+    "cetp_stp_etp_type",
+    "consentValidity",
+    "domesticEffluent",
+    "h_n_type",
+    "phase",
+    "pno",
+    "pincode",
+    "remark",
+    "totalEffluentTradeAndUtility",
+    "unitId",
+    "longitude",
+    "latitude"
+]
+
+module.exports.updateIndustry = async (req,res) => {
+    const industryid = req.params.industryid
+    const plantID = req.userData.plantID
+
+    Object.keys(req.body).forEach((key) => {
+        // check if key is present in the updateable fields
+        if (!updateableFields.includes(key)) {
+            return res.status(400).json({
+                message: `${key} is not allowed to update`
+            })
+        }
+
+        // if key is IC_chamber_install, it can only have yes or no as values
+        if (key === 'IC_chamber_install') {
+            req.body[key] = req.body[key].toLowerCase();
+            if (req.body[key] !== 'yes' && req.body[key] !== 'no') {
+                return res.status(400).json({
+                    message: 'IC_chamber_install can only be yes or no'
+                })
+            }
+        }
+
+        // if key is h_n_type, it can only have h or n as values
+        if (key === 'h_n_type') {
+            req.body[key] = req.body[key].toLowerCase();
+            if (req.body[key] !== 'h' && req.body[key] !== 'n') {
+                return res.status(400).json({
+                    message: 'h_n_type can only be h or n'
+                })
+            }
+        }
+    })
+
+    try {
+        const industry = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
+        
+        if(!industry.exists){
+            return res.status(404).json({
+                message: "Industry not found"
+            })
+        }
+
+        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).update(req.body)
+
+        return res.status(200).json({
+            message: "Industry updated successfully"
+        })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+}
+
 // Normal function to delete an industry based on the admin's uid (to get the plant collection)
 module.exports.deleteIndustry = async (req,res) => {
     const industryid = req.params.uid
@@ -720,42 +792,4 @@ module.exports.deleteIndustry = async (req,res) => {
         })
     }
 
-    firestore.collection('users').doc(adminuid).get()
-    .then(async admin => {
-        if(!admin.exists){
-            return res.status(404).json({
-                message: "Admin doesn't exist"
-            })
-        }
-
-        if(admin.get('accessLevel')!==1){
-            return res.status(401).json({
-                message: "Only admin can delete industries"
-            })
-        }
-
-        const plantID = admin.get('plantID')
-
-        const industryFirestore = await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).get()
-        const industry = await firebase.auth().getUserByEmail(industryFirestore.get('email'))
-
-        // delete industries firebase account
-        await firebase.auth().deleteUser(industry.uid)
-
-        // delete industry from plant's industry collection
-        await firestore.collection(`plants/${plantID}/industryUsers`).doc(industryid).delete()
-
-        // delete request from industry requests (if present)
-        await IndustryRequest.doc(industryid).delete()
-
-        return res.status(200).json({
-            message: "Industry deleted"
-        })
-    })
-    .catch(err => {
-        console.log(err);
-        return res.status(500).json({
-            error: err
-        })
-    })
 }

@@ -30,7 +30,6 @@ module.exports.createOrder = async (req, res) => {
             receipt: receipt,
             notes: notes
         })
-        console.log(payment);
 
         return res.status(200).json(payment)
 
