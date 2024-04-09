@@ -1,6 +1,30 @@
 const firebase = require('../../config/firebase')
 const firestore = firebase.firestore()
 
+module.exports.getUserByMail = async (req,res) => {
+    const mailID = req.params.mail
+
+    try {
+        const userDoc = await firestore.collection('users').where('mailID', '==', mailID).get()
+
+        if (userDoc.empty) {
+            return res.status(404).json({
+                registered: false
+            });
+        }
+
+        return res.status(200).json({
+            registered: true
+        });
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            error: error
+        })
+    }
+
+}
+
 module.exports.getUser = async (req,res) => {
     const useruid = req.params.uid
 
