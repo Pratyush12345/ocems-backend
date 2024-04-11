@@ -18,6 +18,14 @@ const routes = [
     },
     {
         method: 'get',
+        path: '/:mail',
+        controller: userContoller.getUserByMail,
+        options: { 
+            areAllPlantRolesAllowed: true
+        }
+    },
+    {
+        method: 'get',
         path: '/:uid',
         controller: userContoller.getUser,
         options: { 

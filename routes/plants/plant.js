@@ -12,6 +12,7 @@ router.use('/instrument', require('./instrument'))
 router.use('/chamber', require('./chamber'))
 router.use('/alert', require('./alert'))
 router.use('/sludge', require('./sludge'))
+router.use('/dashboard', require('../dashboard/plant'))
 
 const routes = [
     {

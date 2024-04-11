@@ -188,9 +188,10 @@ module.exports.useItem = async (req,res) => {
     const itemid = req.body.itemid
     const usageQty = req.body.usageQty
     const usageUnit = req.body.usageUnit
+    const usageLocation = req.body.usageLocation
     const plantID = req.userData.plantID
 
-    const requiredFields = ['itemid', 'usageQty', 'usageUnit']
+    const requiredFields = ['itemid', 'usageQty', 'usageUnit', 'usageLocation']
 
     for (const field of requiredFields) {
         if (!req.body[field]) {
@@ -236,6 +237,7 @@ module.exports.useItem = async (req,res) => {
             dateUsed: date,
             usageQty: usageQty,
             usageUnit: itemUnit,
+            usageLocation: usageLocation
         })
 
         // update available quantity
