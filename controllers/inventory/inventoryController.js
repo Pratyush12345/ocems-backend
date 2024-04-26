@@ -32,7 +32,8 @@ module.exports.report = async (req,res) => {
                     action: "Removed",
                     date: usageDoc.data().dateUsed,
                     unit: usageDoc.data().usageUnit,
-                    qty: usageDoc.data().usageQty
+                    qty: usageDoc.data().usageQty,
+                    location: usageDoc.data().usageLocation
                 }));
             });
 

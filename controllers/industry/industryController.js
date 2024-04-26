@@ -704,6 +704,7 @@ const updateableFields = [
     "pincode",
     "remark",
     "totalEffluentTradeAndUtility",
+    "apiID",
     "unitId",
     "longitude",
     "latitude"
