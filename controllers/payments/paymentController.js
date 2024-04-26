@@ -97,30 +97,65 @@ module.exports.createOrderWithTransfersAPI = async (req, res) => {
 
 }
 
+/**
+ * Three possible scenarios:
+ *      1. Payment Successful
+ *      2. Payment Failed
+ *      3. Internal Server Error (any other reason for paymnt failure)
+ */
+
 module.exports.verifyPayment = async (req, res) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
+    let { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const host = 'https://ocems.techvysion.com/';
+    const internalServerErrorUrl = `${host}/internal-server-error`;
 
-    const generatedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
-    generatedSignature.update(`${razorpay_order_id}|${razorpay_payment_id}`);
-    const digest = generatedSignature.digest('hex');
+    const generateSignature = (orderId, paymentId) => {
+        const hmac = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET);
+        hmac.update(`${orderId}|${paymentId}`);
+        return hmac.digest('hex');
+    };
 
-    if (digest === razorpay_signature) {
-        const order = await razorpay.orders.fetch(razorpay_order_id)
+    const redirectWithErrorHandling = async (statusPath) => {
+        try {
+            const order = await razorpay.orders.fetch(razorpay_order_id);
+            const timestamp = new Date(order.created_at * 1000);
+            const queries = `amount=${order.amount/100}&orderid=${order.id}`;
+            const finalUrl = `${host}/${statusPath}?${queries}`;
+            
+            await capturedOrder(order.notes, timestamp, {
+                orderid: order.id,
+                paymentid: razorpay_payment_id,
+                status: order.status
+            });
+            
+            res.redirect(finalUrl);
+        } catch (error) {
+            console.error(error);
+            res.redirect(internalServerErrorUrl);
+        }
+    };
 
-        const timestamp = new Date(order.created_at * 1000)
+    try {
+        if (req.body.error) {
+            const paymentErrorObjectMetadata = JSON.parse(req.body.error.metadata);
+            razorpay_order_id = paymentErrorObjectMetadata.order_id;
+            razorpay_payment_id = paymentErrorObjectMetadata.payment_id;
+        }
 
-        await capturedOrder(order.notes, timestamp, { orderid: order.id, paymentid: razorpay_payment_id })
-        
-        return res.status(200).json({
-            message: 'Payment Successful'
-        })
-    } else {
-        console.log('Payment Failed')
-        return res.status(400).json({
-            message: 'Payment Failed'
-        })
+        const calculatedSignature = generateSignature(razorpay_order_id, razorpay_payment_id);
+
+        if (razorpay_signature && calculatedSignature === razorpay_signature) {
+            return redirectWithErrorHandling(`payment-success`);
+        } else if (req.body.error && req.body.error.reason === 'payment_failed') {
+            return redirectWithErrorHandling(`payment-failed`);
+        } else {
+            return res.redirect(internalServerErrorUrl);
+        }
+    } catch (error) {
+        console.error(error);
+        return res.redirect(internalServerErrorUrl);
     }
-}
+};
 
 /**
  * Requirements:
@@ -163,7 +198,7 @@ module.exports.webhook = async (req, res) => {
         })
 
         const timestamp = new Date(created_at * 1000)
-        await capturedOrder(notes, timestamp, payment_data)
+        // await capturedOrder(notes, timestamp, payment_data)
     } else {
         console.log('webhook Failed')
         return res.status(400).json({
@@ -174,7 +209,6 @@ module.exports.webhook = async (req, res) => {
 
 const capturedOrder = async (notes, timestamp, payment_data) => {
     const { plantId, industryId, billId } = notes
-
     firestore.collection('plants').doc(plantId).get()
     .then(async plant => {
         if(plant.exists) {
@@ -185,13 +219,20 @@ const capturedOrder = async (notes, timestamp, payment_data) => {
                 
                 if(bill.exists) {
 
-                    await firestore.collection(`plants/${plantId}/industryUsers`).doc(industryId).collection('bills').doc(billId).update({
-                        datePaid: timestamp.toUTCString(),
-                        dateUpdated: timestamp.toUTCString(),
-                        isPaid: true,
-                        paymentData: payment_data,
-                        paymentRecieptLink: ""
-                    })
+                    if(payment_data.status === 'paid'){
+                        await firestore.collection(`plants/${plantId}/industryUsers`).doc(industryId).collection('bills').doc(billId).update({
+                            datePaid: timestamp.toUTCString(),
+                            dateUpdated: timestamp.toUTCString(),
+                            isPaid: true,
+                            paymentData: payment_data,
+                            paymentRecieptLink: ""
+                        })
+                    } else if(payment_data.status === 'attempted') {
+                        await firestore.collection(`plants/${plantId}/industryUsers`).doc(industryId).collection('bills').doc(billId).update({
+                            dateUpdated: timestamp.toUTCString(),
+                            paymentData: payment_data,
+                        })
+                    }
 
                 } else {
                     console.log('Bill does not exist')
@@ -203,5 +244,6 @@ const capturedOrder = async (notes, timestamp, payment_data) => {
     })
     .catch(err => {
         console.log(err);
+        throw Error(err)
     })
 }
